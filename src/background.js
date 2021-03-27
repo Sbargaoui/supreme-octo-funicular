@@ -9,9 +9,11 @@ db.version(1).stores({
 function messageListener(request, sender, sendResponse) {
     console.log(request)
     if (request.action === "db-insert") {
-        db.screenshots.add(request.value)
+        return db.screenshots.add(request.value)
+    } else if (request.action === "db-update") {
+        return db.screenshots.put(request.value)
     } else if (request.action === "db-delete") {
-        db.screenshots.delete(request.id)
+        return db.screenshots.delete(request.id)
     } else if (request.action === "db-getall") {
         return db.screenshots.reverse().sortBy("date")
     }

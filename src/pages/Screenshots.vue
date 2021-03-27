@@ -26,6 +26,16 @@
   <main class="bg-gray-100">
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div>
+            <div class="mb-4"><font-awesome-icon 
+                icon="upload"
+                size="2x"
+                class="cursor-pointer"
+                v-confirm="{
+                    ok: dialog => upload(null),
+                    message:
+                        'Voulez-vous uploader un fichier JSON pour crééer un nouveau screenshot ?'
+                }"
+            /></div>
             <div class="flex flex-col">
                 <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                     <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
@@ -57,7 +67,7 @@
                                             {{ s.company }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <json-viewer theme="json-theme" :value="s.values" expand-depth="0"></json-viewer>
+                                            <json-viewer theme="json-theme" :value="s.values" :expand-depth="0"></json-viewer>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <span class="mr-2"><font-awesome-icon icon="download" size="2x" class="cursor-pointer" @click.prevent="download(s.id)" /></span>
@@ -93,6 +103,7 @@
     </div>
   </main>
   <a id="downloadAnchorElem" style="display:none"></a>
+  <input type="file" style="display: none" ref="fileInput" accept="application/json" @change="onFilePicked"/>
 </div>
 </template>
 
@@ -106,7 +117,8 @@ export default {
     components: {JsonViewer},
     data() {
         return {
-            screenshots: []
+            screenshots: [],
+            uploadingID: null
         }
     },
     async mounted() {
@@ -129,6 +141,46 @@ export default {
                 id
             })
             this.screenshots.splice(this.screenshots.findIndex(e => e.id === id), 1)
+        },
+        upload(id) {
+            this.$refs.fileInput.click()
+            this.uploadingID = id
+        },
+        onFilePicked(event) {
+            const files = event.target.files
+            const fileReader = new FileReader()
+            fileReader.addEventListener('load', async () => {
+                const screenshot = JSON.parse(fileReader.result)
+                if (screenshot.company && screenshot.date && screenshot.values) {
+                    console.log(this.uploadingID)
+                    if (this.uploadingID) {
+                        browser.runtime.sendMessage({
+                            action: "db-update",
+                            value: {
+                                ...screenshot,
+                                id: this.uploadingID
+                            }
+                        })
+                        this.screenshots.splice(this.screenshots.findIndex(e => e.id === this.uploadingID), 1, {...screenshot, id: this.uploadingID})
+                        this.uploadingID = null
+                    } else {
+                        await browser.runtime.sendMessage({
+                            action: "db-insert",
+                            value: {
+                                ...screenshot,
+                                id: undefined
+                            }
+                        })   
+                        this.screenshots = await browser.runtime.sendMessage({
+                            action: "db-getall"
+                        })
+                    }
+                }
+                this.$refs.fileInput.value = null
+            })
+            if (files[0]) {
+                fileReader.readAsText(files[0])
+            }
         }
     }
 }
