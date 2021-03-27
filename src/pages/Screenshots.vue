@@ -1,0 +1,192 @@
+<template>
+<div class="w-full">
+  <nav class="bg-indigo-900">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <img class="h-14" src="../assets/logo.png" alt="Quantmetry">
+          </div>
+          <div class="hidden md:block">
+            <div class="ml-10 flex items-baseline space-x-4">
+              <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <header class="bg-gray-100 shadow">
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <h1 class="text-3xl font-bold text-gray-900">
+        Screenshots Quantmetry x Stafiz
+      </h1>
+    </div>
+  </header>
+  <main class="bg-gray-100">
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div>
+            <div class="flex flex-col">
+                <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                    <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+                        <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Date
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Company
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Values
+                                        </th>
+                                        <th scope="col" class="relative px-6 py-3">
+                                            <span class="sr-only">Edit</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Odd row -->
+                                    <tr class="bg-white" v-for="s of screenshots" :key="s.id">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {{ s.date | moment("from", "now") }} ({{ s.date | moment("DD/MM/YYYY HH:mm") }})
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ s.company }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <json-viewer theme="json-theme" :value="s.values" expand-depth="0"></json-viewer>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <span class="mr-2"><font-awesome-icon icon="download" size="2x" class="cursor-pointer" @click.prevent="download(s.id)" /></span>
+                                            <span class="mr-2"><font-awesome-icon 
+                                                icon="upload"
+                                                size="2x"
+                                                class="cursor-pointer"
+                                                v-confirm="{
+                                                    ok: dialog => upload(s.id),
+                                                    message:
+                                                        'Voulez-vous uploader un fichier JSON pour remplacer ce screenshot ? Les données d\'origine seront perdues'
+                                                }"
+                                            /></span>
+                                            <span><font-awesome-icon 
+                                                icon="times"
+                                                size="2x"
+                                                class="cursor-pointer"
+                                                v-confirm="{
+                                                    ok: dialog => remove(s.id),
+                                                    message:
+                                                        'Voulez-vous vraiment supprimer ce screenshot ? Cette action ne pourra pas être annulée'
+                                                }"
+                                            /></span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  </main>
+  <a id="downloadAnchorElem" style="display:none"></a>
+</div>
+</template>
+
+<script>
+import moment from "moment"
+import JsonViewer from 'vue-json-viewer'
+
+const browser = require("webextension-polyfill")
+
+export default {
+    components: {JsonViewer},
+    data() {
+        return {
+            screenshots: []
+        }
+    },
+    async mounted() {
+        this.screenshots = await browser.runtime.sendMessage({
+            action: "db-getall"
+        })
+    },
+    methods: {
+        download(id) {
+            const s = this.screenshots.find(e => e.id === id)
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(s));
+            var dlAnchorElem = document.getElementById('downloadAnchorElem');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `screenshot-${encodeURIComponent(s.company)}-${moment(s.date).format("YYYY-MM-DD")}.json`);
+            dlAnchorElem.click();
+        },
+        remove(id) {
+            browser.runtime.sendMessage({
+                action: "db-delete",
+                id
+            })
+            this.screenshots.splice(this.screenshots.findIndex(e => e.id === id), 1)
+        }
+    }
+}
+</script>
+
+<style lang="scss">
+// values are default one from jv-light template
+.json-theme {
+  background: #fff;
+  white-space: nowrap;
+  color: #525252;
+  font-size: 14px;
+  font-family: Consolas, Menlo, Courier, monospace;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 500px;
+
+  .jv-ellipsis {
+    color: #999;
+    background-color: #eee;
+    display: inline-block;
+    line-height: 0.9;
+    font-size: 0.9em;
+    padding: 0px 4px 2px 4px;
+    border-radius: 3px;
+    vertical-align: 2px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .jv-button { color: #49b3ff }
+  .jv-key { color: #111111 }
+  .jv-item {
+    &.jv-array { color: #111111 }
+    &.jv-boolean { color: #fc1e70 }
+    &.jv-function { color: #067bca }
+    &.jv-number { color: #fc1e70 }
+    &.jv-number-float { color: #fc1e70 }
+    &.jv-number-integer { color: #fc1e70 }
+    &.jv-object { color: #111111 }
+    &.jv-undefined { color: #e08331 }
+    &.jv-string {
+      color: #42b983;
+      word-break: break-word;
+      white-space: normal;
+    }
+  }
+  .jv-code {
+    .jv-toggle {
+      &:before {
+        padding: 0px 2px;
+        border-radius: 2px;
+      }
+      &:hover {
+        &:before {
+          background: #eee;
+        }
+      }
+    }
+  }
+}
+</style>

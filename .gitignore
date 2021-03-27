@@ -1,0 +1,8 @@
+build
+.cache
+node_modules
+package/
+.idea
+.idea/workspace.xml
+.env
+web-ext-artifacts

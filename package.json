@@ -1,0 +1,46 @@
+{
+  "name": "quantmetry-stafiz",
+  "version": "1.0.0",
+  "description": "Augmenter les informations de Stafiz",
+  "main": "background.js",
+  "scripts": {
+    "build": "rm -rf build/ && parcel build --no-cache --no-source-maps src/*.html src/background.js -d build/ --public-url /build/",
+    "package": "npm run build && npx web-ext build --overwrite-dest",
+    "watch": "parcel watch --no-cache src/pages/index.html src/background.js src/script.js src/content.js -d build/ --public-url /build/"
+  },
+  "author": "",
+  "license": "ISC",
+  "browserslist": [
+    "last 2 Chrome version"
+  ],
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.34",
+    "@fortawesome/free-regular-svg-icons": "^5.15.1",
+    "@fortawesome/free-solid-svg-icons": "^5.15.3",
+    "@fortawesome/vue-fontawesome": "^2.0.2",
+    "@tailwindcss/postcss7-compat": "^2.0.2",
+    "autoprefixer": "^9.8.6",
+    "axios": "^0.18.0",
+    "cross-env": "^5.2.0",
+    "dexie": "^3.0.3",
+    "moments": "0.0.2",
+    "parcel": "^1.12.3",
+    "postcss": "^7.0.35",
+    "socket.io-client": "^3.1.0",
+    "tailwindcss": "npm:@tailwindcss/postcss7-compat@^2.0.2",
+    "vue": "^2.6.12",
+    "vue-hot-reload-api": "^2.3.4",
+    "vue-json-viewer": "^2.2.18",
+    "vue-moment": "^4.1.0",
+    "vue-router": "^3.5.1",
+    "vuejs-dialog": "^1.4.2"
+  },
+  "devDependencies": {
+    "@vue/compiler-sfc": "^3.0.5",
+    "@vue/component-compiler-utils": "^3.2.0",
+    "babel-core": "^6.26.3",
+    "sass": "^1.32.8",
+    "vue-template-compiler": "^2.6.12",
+    "webextension-polyfill": "^0.7.0"
+  }
+}
