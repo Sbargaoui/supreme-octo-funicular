@@ -16,6 +16,16 @@ function messageListener(request, sender, sendResponse) {
         return db.screenshots.delete(request.id)
     } else if (request.action === "db-getall") {
         return db.screenshots.reverse().sortBy("date")
+    } else if (request.action === "db-get" && request.id) {
+        db.screenshots.get(request.id).then(result => {
+            sendResponse(result)
+        })
+        return true
+    } else if (request.action === "db-select" && request.where) {
+        db.screenshots.where(request.where).reverse().sortBy("date").then(result => {
+            sendResponse(result)
+        })
+        return true
     }
 }
 
