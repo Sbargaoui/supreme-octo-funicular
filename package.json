@@ -4,7 +4,7 @@
   "description": "Augmenter les informations de Stafiz",
   "main": "background.js",
   "scripts": {
-    "build": "rm -rf build/ && parcel build --no-cache --no-source-maps src/*.html src/background.js -d build/ --public-url /build/",
+    "build": "rm -rf build/ && parcel build --no-cache --no-source-maps src/pages/index.html src/background.js src/script.js src/content.js -d build/ --public-url /build/",
     "package": "npm run build && npx web-ext build --overwrite-dest",
     "watch": "parcel watch --no-cache src/pages/index.html src/background.js src/script.js src/content.js -d build/ --public-url /build/"
   },
