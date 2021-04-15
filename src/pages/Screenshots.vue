@@ -26,6 +26,15 @@
   <main class="bg-gray-100">
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div>
+            <template v-if="token">Token API : {{ token }}</template>
+            <template v-else>
+                <input type="text" v-model="form.email" /> <input type="password" v-model="form.password" />
+                <button @click="login">Se connecter</button>
+            </template>
+        </div>
+    </div>
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8" v-if="token">
+        <div>
             <div class="mb-4"><font-awesome-icon 
                 icon="upload"
                 size="2x"
@@ -110,6 +119,7 @@
 <script>
 import moment from "moment"
 import JsonViewer from 'vue-json-viewer'
+import axios from 'axios'
 
 const browser = require("webextension-polyfill")
 
@@ -118,15 +128,35 @@ export default {
     data() {
         return {
             screenshots: [],
-            uploadingID: null
+            uploadingID: null,
+            token: null,
+            form: {
+                email: "",
+                password: ""
+            }
         }
     },
     async mounted() {
         this.screenshots = await browser.runtime.sendMessage({
             action: "db-getall"
         })
+
+        chrome.storage.local.get(['token'], (result) => {
+            this.token = result.token
+        })
     },
     methods: {
+       async  login() {
+            const result = await axios.post("https://stafiz.net/api/login", {
+                email: this.form.email,
+                password: this.form.password
+            })
+            if (result.data.status) {
+                chrome.storage.local.set({'token': result.data.data.api_token}, () => {
+                    this.token = result.data.data.api_token
+                });
+            }
+        },
         download(id) {
             const s = this.screenshots.find(e => e.id === id)
             var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(s));

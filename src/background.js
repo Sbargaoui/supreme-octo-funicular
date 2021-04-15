@@ -26,6 +26,11 @@ function messageListener(request, sender, sendResponse) {
             sendResponse(result)
         })
         return true
+    } else if (request.action === "get-token") {
+        chrome.storage.local.get(['token'], (result) => {
+            sendResponse(result.token)
+        })
+        return true
     }
 }
 
