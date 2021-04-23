@@ -4,6 +4,7 @@ import VuejsDialog from 'vuejs-dialog';
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { faDownload, faTimes, faUpload } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import VTooltip from 'v-tooltip'
 
 import 'vuejs-dialog/dist/vuejs-dialog.min.css';
 
@@ -12,6 +13,7 @@ Vue.component('font-awesome-icon', FontAwesomeIcon)
 Vue.use(require('vue-moment'));
 Vue.use(VueRouter)
 Vue.use(VuejsDialog);
+Vue.use(VTooltip)
 
 import App from './App.vue'
 import Popup from './Popup'

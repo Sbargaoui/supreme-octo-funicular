@@ -19,14 +19,20 @@
   <header class="bg-gray-100 shadow">
     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
       <h1 class="text-3xl font-bold text-gray-900">
-        Screenshots Quantmetry x Stafiz
+        Screenshots Pipe Quantmetry x Stafiz
       </h1>
     </div>
   </header>
   <main class="bg-gray-100">
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div>
-            <template v-if="token">Token API : {{ token }}</template>
+            <template v-if="token">
+                Token API : {{ token }}<br />
+                <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                @click="logout">
+                    Se déconnecter
+                </button>
+            </template>
             <template v-else>
                 <input type="text" v-model="form.email" /> <input type="password" v-model="form.password" />
                 <button @click="login">Se connecter</button>
@@ -35,16 +41,22 @@
     </div>
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8" v-if="token">
         <div>
-            <div class="mb-4"><font-awesome-icon 
+            <div class="mb-4">
+                <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-4">
+                    Générer un screenshot
+                </button>
+                <font-awesome-icon 
                 icon="upload"
                 size="2x"
                 class="cursor-pointer"
+                v-tooltip="'Uploader un nouveau screenshot'"
                 v-confirm="{
                     ok: dialog => upload(null),
                     message:
                         'Voulez-vous uploader un fichier JSON pour crééer un nouveau screenshot ?'
                 }"
-            /></div>
+                />
+            </div>
             <div class="flex flex-col">
                 <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                     <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
@@ -79,11 +91,12 @@
                                             <json-viewer theme="json-theme" :value="s.values" :expand-depth="0"></json-viewer>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <span class="mr-2"><font-awesome-icon icon="download" size="2x" class="cursor-pointer" @click.prevent="download(s.id)" /></span>
+                                            <span class="mr-2" v-tooltip="'Télécharger le screenshot'"><font-awesome-icon icon="download" size="2x" class="cursor-pointer" @click.prevent="download(s.id)" /></span>
                                             <span class="mr-2"><font-awesome-icon 
                                                 icon="upload"
                                                 size="2x"
                                                 class="cursor-pointer"
+                                                v-tooltip="'Remplacer le contenu de ce screenshot'"
                                                 v-confirm="{
                                                     ok: dialog => upload(s.id),
                                                     message:
@@ -94,6 +107,7 @@
                                                 icon="times"
                                                 size="2x"
                                                 class="cursor-pointer"
+                                                v-tooltip="'Supprimer ce screenshot'"
                                                 v-confirm="{
                                                     ok: dialog => remove(s.id),
                                                     message:
@@ -141,12 +155,19 @@ export default {
             action: "db-getall"
         })
 
-        chrome.storage.local.get(['token'], (result) => {
+        chrome.storage.local.get(['token'], async (result) => {
             this.token = result.token
+
+            // const result2 = await axios.get("https://stafiz.net/api/opportunities?team=568", {
+            //     headers: {
+            //         Authorization: "Bearer " + this.token
+            //     }
+            // })
+            // console.log(result2.data)
         })
     },
     methods: {
-       async  login() {
+        async login() {
             const result = await axios.post("https://stafiz.net/api/login", {
                 email: this.form.email,
                 password: this.form.password
@@ -156,6 +177,10 @@ export default {
                     this.token = result.data.data.api_token
                 });
             }
+        },
+        logout() {
+            chrome.storage.local.set({'token': null});
+            this.token = null
         },
         download(id) {
             const s = this.screenshots.find(e => e.id === id)
