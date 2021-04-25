@@ -43,7 +43,11 @@
         <div>
             <div class="mb-4">
                 <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-4"
-                @click="generate">
+                v-confirm="{
+                    ok: generate,
+                    message: 'Générer un nouveau screenshot ?',
+                    loader: true
+                }">
                     Générer un screenshot
                 </button>
                 <font-awesome-icon 
@@ -180,7 +184,7 @@ export default {
             chrome.storage.local.set({'token': null});
             this.token = null
         },
-        async generate() {
+        async generate(dialog) {
             const all_opportunities = []
             let next_url = "https://stafiz.net/api/opportunities"
             do {
@@ -212,6 +216,7 @@ export default {
                 }
             })
             this.loadScreenshots()
+            dialog.close()
         },
         download(id) {
             const s = this.screenshots.find(e => e.id === id)
