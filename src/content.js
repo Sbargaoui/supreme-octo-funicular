@@ -1,5 +1,7 @@
 import moment from "moment"
 
+import { teamIdFromName, columnNameFromID } from "./helpers"
+
 const dropdownScreenshotList = $('<select style="margin-right: 10px;" />');
 
 const extensionID = $('script[data-extension]').data('extension');
@@ -48,6 +50,8 @@ $(document).ready(function () {
                     action: "db-get",
                     id: parseInt(id)
                 }, async screenshot => {
+                    const teamName = $("select[name=team]").next().find(".select2-selection__rendered").first().text()
+                    screenshot.values = screenshot.values.filter(e => e.teams.indexOf(teamIdFromName(teamName)) !== -1)
                     console.log(screenshot)
 
                     let total_win = 0, total_lost = 0;
@@ -63,27 +67,28 @@ $(document).ready(function () {
                     $('.portlet').removeClass("extension-changes")
                     $(".portlet").each((index, el) => {
                         const new_amount = parseFloat($(el).find(".portlet-content").children().first().text().replace("€", "").replace(" ", ""))
-                        const new_probability = parseFloat($(el).find(".portlet-content").children().eq(3).text().replace("%", "").replace(" ", ""))/100
+                        const new_probability = parseFloat($(el).find(".portlet-content").children().eq(3).text().replace("%", "").replace(" ", ""))
                         const new_step_column = ($(el).parent().first()).attr("class").replace("ui-sortable", "").replace("pip_column", "").trim()
                         const new_step = $(".pipe_column_pipe").eq(parseInt(new_step_column.replace("col", "")-1)).find(".pipe_column_pipe3").clone().children().remove().end().text().trim()
 
-                        const new_weighted_value = new_amount*new_probability
+                        const new_weighted_value = new_amount*new_probability/100
 
                         $(el).find(".portlet-content").children().eq(3).after(`<br class="extension" /><span class="extension weighted">Valeur pondérée : ${formatCurrency(new_weighted_value)}</span>`)
 
                         const id = $(el).attr("data-id")
                         IDs.push(id)
-                        const prev = screenshot.values.find(e => e.id === id)
+                        const prev = screenshot.values.find(e => e.id == id)
 
                         if (prev) {
+                            prev.step_name = columnNameFromID(prev.column_id)
                             let changes = false, decrease = false, increase = false
 
-                            const old_weighted_value = prev.amount * prev.probability
+                            const old_weighted_value = prev.amount * prev.probability/100
                             if (new_weighted_value != old_weighted_value) {
                                 let icon = ''
                                 if (old_weighted_value < new_weighted_value) icon = '➚'
                                 else if (old_weighted_value > new_weighted_value) icon = '➘'
-                                $(el).find(".portlet-content").find(".weighted").append(`${icon} (prev ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(old_weighted_value)})<br />Delta pondéré : ${formatCurrency(new_weighted_value - old_weighted_value)}`)
+                                $(el).find(".portlet-content").find(".weighted").append(`${icon} (prec. ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(old_weighted_value)})<br />Delta pondéré : ${formatCurrency(new_weighted_value - old_weighted_value)}`)
                                 total_delta += new_weighted_value - old_weighted_value
                             }
 
@@ -97,7 +102,7 @@ $(document).ready(function () {
                                     icon = '➘'
                                     decrease = true
                                 }
-                                $(el).find(".portlet-content").children().first().append(`<span class='extension'>${icon} (prev ${formatCurrency(prev.amount)})</span>`)
+                                $(el).find(".portlet-content").children().first().append(`<span class='extension'>${icon} (prec. ${formatCurrency(prev.amount)})</span>`)
                                 changes = true
                             }
                             if (prev.probability != new_probability) {
@@ -110,7 +115,7 @@ $(document).ready(function () {
                                     icon = '➘'
                                     decrease = true
                                 }
-                                $(el).find(".portlet-content").children().eq(3).append(`<span class='extension'>${icon} (prev ${prev.probability*100}%)</span>`)
+                                $(el).find(".portlet-content").children().eq(3).append(`<span class='extension'>${icon} (prec. ${prev.probability}%)</span>`)
                                 changes = true
                             }
                             if (prev.step_name != new_step) {
@@ -131,7 +136,7 @@ $(document).ready(function () {
                         }
                     })
 
-                    const removed_values = screenshot.values.filter(e => IDs.indexOf(e.id) === -1)
+                    const removed_values = screenshot.values.filter(e => IDs.indexOf(e.id.toString()) === -1)
                     console.log(removed_values)
                     for (let e of removed_values) {
                         console.log(e)
@@ -143,7 +148,6 @@ $(document).ready(function () {
                                 "Authorization": "Bearer " + token
                             }
                         })
-                        console.log(data)
                         
                         const won = data.length > 0 && data[0].status === "won";
 
@@ -193,10 +197,12 @@ $(document).ready(function () {
 })
 
 function buildScreenshotList() {
+    // Selected company
+    // $("select[name=team]").next().find(".select2-selection__rendered").first().text()
     chrome.runtime.sendMessage(extensionID, {
         action: "db-select",
         where: {
-            company: $("select[name=team]").next().find(".select2-selection__rendered").first().text()
+            company: "All"
         }
     }, screenshots => {
         console.log(screenshots)

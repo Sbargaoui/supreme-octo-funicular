@@ -138,23 +138,7 @@ import axios from 'axios'
 
 const browser = require("webextension-polyfill")
 
-const TEAMS = [
-    { name: "Data & Production", id: "564" },
-    { name: "Data & Services", id: "566" },
-    { name: "Data & Retail", id: "567" },
-    { name: "Data & Society", id: "568" },
-    { name: "Data & Mutuelle", id: "579" }
-]
-const TEAM_RECURRING = "789"
-const TEAM_NON_RECURRING = "790"
-
-const COLUMNS = [
-    { name: "Stand-By", id: 2962 },
-    { name: "Opportunités détectées", id: 2351 },
-    { name: "Taux transfo faible", id: 2348 },
-    { name: "A transformer", id: 2350 },
-    { name: "Négociation/Contractualisation", id: 1906 }
-]
+import { TEAMS } from "../helpers"
 
 export default {
     components: {JsonViewer},
@@ -211,7 +195,13 @@ export default {
             console.log(all_opportunities)
             const open_opportunities = all_opportunities.filter(e => {
                 return e.status === "open" && (JSON.parse(e.teams).filter(t => TEAMS.find(T => t === T.id) != -1)).length > 0
-            })
+            }).map(e => ({
+                ...e,
+                amount: parseFloat(e.amount),
+                probability: parseFloat(e.chances),
+                teams: JSON.parse(e.teams),
+                column_id: e.status2
+            }))
             console.log(open_opportunities)
             await browser.runtime.sendMessage({
                 action: "db-insert",
