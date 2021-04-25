@@ -42,7 +42,8 @@
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8" v-if="token">
         <div>
             <div class="mb-4">
-                <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-4">
+                <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-4"
+                @click="generate">
                     Générer un screenshot
                 </button>
                 <font-awesome-icon 
@@ -137,6 +138,24 @@ import axios from 'axios'
 
 const browser = require("webextension-polyfill")
 
+const TEAMS = [
+    { name: "Data & Production", id: "564" },
+    { name: "Data & Services", id: "566" },
+    { name: "Data & Retail", id: "567" },
+    { name: "Data & Society", id: "568" },
+    { name: "Data & Mutuelle", id: "579" }
+]
+const TEAM_RECURRING = "789"
+const TEAM_NON_RECURRING = "790"
+
+const COLUMNS = [
+    { name: "Stand-By", id: 2962 },
+    { name: "Opportunités détectées", id: 2351 },
+    { name: "Taux transfo faible", id: 2348 },
+    { name: "A transformer", id: 2350 },
+    { name: "Négociation/Contractualisation", id: 1906 }
+]
+
 export default {
     components: {JsonViewer},
     data() {
@@ -151,22 +170,17 @@ export default {
         }
     },
     async mounted() {
-        this.screenshots = await browser.runtime.sendMessage({
-            action: "db-getall"
-        })
-
+        this.loadScreenshots()
         chrome.storage.local.get(['token'], async (result) => {
             this.token = result.token
-
-            // const result2 = await axios.get("https://stafiz.net/api/opportunities?team=568", {
-            //     headers: {
-            //         Authorization: "Bearer " + this.token
-            //     }
-            // })
-            // console.log(result2.data)
         })
     },
     methods: {
+        async loadScreenshots() {
+            this.screenshots = await browser.runtime.sendMessage({
+                action: "db-getall"
+            })
+        },
         async login() {
             const result = await axios.post("https://stafiz.net/api/login", {
                 email: this.form.email,
@@ -181,6 +195,33 @@ export default {
         logout() {
             chrome.storage.local.set({'token': null});
             this.token = null
+        },
+        async generate() {
+            const all_opportunities = []
+            let next_url = "https://stafiz.net/api/opportunities"
+            do {
+                const result = await axios.get(next_url, {
+                    headers: {
+                        Authorization: "Bearer " + this.token
+                    }
+                })
+                all_opportunities.push(...result.data.data)
+                next_url = result.data.next_page_url
+            } while(next_url)
+            console.log(all_opportunities)
+            const open_opportunities = all_opportunities.filter(e => {
+                return e.status === "open" && (JSON.parse(e.teams).filter(t => TEAMS.find(T => t === T.id) != -1)).length > 0
+            })
+            console.log(open_opportunities)
+            await browser.runtime.sendMessage({
+                action: "db-insert",
+                value: {
+                    company: "All",
+                    date: new Date(),
+                    values: open_opportunities
+                }
+            })
+            this.loadScreenshots()
         },
         download(id) {
             const s = this.screenshots.find(e => e.id === id)
