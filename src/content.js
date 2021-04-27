@@ -1,6 +1,6 @@
 import moment from "moment"
 
-import { teamIdFromName, columnNameFromID } from "./helpers"
+import { teamIdFromName, columnNameFromID, TEAMS, TEAM_RECURRING, TEAM_NON_RECURRING } from "./helpers"
 
 const dropdownScreenshotList = $('<select style="margin-right: 10px;" />');
 
@@ -51,7 +51,15 @@ $(document).ready(function () {
                     id: parseInt(id)
                 }, async screenshot => {
                     const teamName = $("select[name=team]").next().find(".select2-selection__rendered").first().text()
-                    screenshot.values = screenshot.values.filter(e => e.teams.indexOf(teamIdFromName(teamName)) !== -1)
+                    console.log(teamName)
+                    if (teamName !== "Entreprise") {
+                        screenshot.values = screenshot.values.filter(e => e.teams.indexOf(teamIdFromName(teamName)) !== -1)
+                    } else {
+                        console.log("loading")
+                        screenshot.values = screenshot.values.filter(e => {
+                            return (e.teams.filter(t => TEAMS.find(T => t === T.id) != -1)).length > 0
+                        })
+                    }
                     console.log(screenshot)
 
                     let total_win = 0, total_lost = 0;
@@ -59,12 +67,15 @@ $(document).ready(function () {
                     let total_new_weighted = 0
                     let total_delta = 0
 
+                    let total_recurring = 0, total_non_recurring = 0
+
                     const IDs = []
 
                     $('.extension').remove()
                     $('.portlet').css('background-color', '')
                     $('.portlet').removeClass("extension-new")
                     $('.portlet').removeClass("extension-changes")
+                    const promises = []
                     $(".portlet").each((index, el) => {
                         const new_amount = parseFloat($(el).find(".portlet-content").children().first().text().replace("€", "").replace(" ", ""))
                         const new_probability = parseFloat($(el).find(".portlet-content").children().eq(3).text().replace("%", "").replace(" ", ""))
@@ -82,6 +93,9 @@ $(document).ready(function () {
                         if (prev) {
                             prev.step_name = columnNameFromID(prev.column_id)
                             let changes = false, decrease = false, increase = false
+
+                            if (prev.teams.includes(TEAM_RECURRING)) total_recurring = prev.amount * prev.probability/100
+                            else if (prev.teams.includes(TEAM_NON_RECURRING)) total_non_recurring = prev.amount * prev.probability/100
 
                             const old_weighted_value = prev.amount * prev.probability/100
                             if (new_weighted_value != old_weighted_value) {
@@ -132,45 +146,56 @@ $(document).ready(function () {
                             $(el).find('.portlet-header').prepend("<span class='extension'>(new) </span>")
                             $(el).addClass("extension-new")
 
-                            total_new_weighted += new_amount * new_probability
+                            promises.push($.ajax({
+                                url: "https://stafiz.net/api/opportunities/" + id,
+                                headers: {
+                                    "Authorization": "Bearer " + token
+                                }
+                            }))
+
+                            total_new_weighted += new_amount * new_probability/100
                         }
+                    })
+                    const new_data = await $.when(...promises).then((...results) => results)
+                    $.each(new_data, (_, data) => {
+                        if (JSON.parse(data[0][0].teams).includes(TEAM_RECURRING)) total_recurring += parseFloat(data[0][0].amount) * data[0][0].chances/100
+                        else if (JSON.parse(data[0][0].teams).includes(TEAM_NON_RECURRING)) total_non_recurring += parseFloat(data[0][0].amount) * data[0][0].chances/100
                     })
 
                     const removed_values = screenshot.values.filter(e => IDs.indexOf(e.id.toString()) === -1)
                     console.log(removed_values)
                     for (let e of removed_values) {
                         console.log(e)
-                        
-                        console.log(token)
                         const data = await $.ajax({
                             url: "https://stafiz.net/api/opportunities/" + e.id,
                             headers: {
                                 "Authorization": "Bearer " + token
                             }
                         })
-                        
+
+                        const column = $(`input[value="${e.column_id}"]`).attr("id").replace("colorder_of_", "")
                         const won = data.length > 0 && data[0].status === "won";
 
                         if (won) {
                             total_win += e.amount
-                            total_win_weighted += e.amount * e.probability
+                            total_win_weighted += e.amount * e.probability/100
                         } else {
                             total_lost += e.amount
-                            total_lost_weighted += e.amount * e.probability
+                            total_lost_weighted += e.amount * e.probability/100
                         }
                         
                         $(`<div class="portlet ui-widget ui-widget-content ui-helper-clearfix ui-corner-all extension-new" data-id="${e.id}" style="background-color: ${won ? '#9b59b6' : '#e55039'}">
                             <div class="extension portlet-header ui-sortable-handle ui-widget-header ui-corner-all">(${won ? 'Gagnée' : 'Perdue'})
-                            ${e.name}
+                            ${e.job_name}
                             </div>
                             <div class="portlet-content">
                                 <span class="g_nowrap">${formatCurrency(e.amount)}</span>
                                 <br>
-                                <span class="pipe_litgr">Probabilité : </span><span>${e.probability*100}%</span>
+                                <span class="pipe_litgr">Probabilité : </span><span>${e.probability}%</span>
                                 <br>
-                                ${!won && data.length > 0 && data[0].reazon ? `Raison : ${JSON.parse(data[0].reazon).comment}` : ''}
+                                ${!won && data.length > 0 && data[0].reazon ? `Raison : ${JSON.parse(data[0].reazon).select}${JSON.parse(data[0].reazon).comment ? ` / ${JSON.parse(data[0].reazon).comment}` : ''}` : ''}
                             </div>
-                        </div>`).appendTo(`.${e.step_column}`)
+                        </div>`).appendTo(`.col${column}`)
                     }
                     $("#formtabtab1").after(`<div style='text-align:left;'>
                         <ul style='list-style: none;'>
@@ -179,6 +204,8 @@ $(document).ready(function () {
                             <tr><td><b>Total LOST</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_lost)} (pondéré ${formatCurrency(total_lost_weighted)})</td></tr>
                             <tr><td><b>Total NEW</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_new_weighted)}</td></tr>
                             <tr><td><b>Évolution</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta)}</td></tr>
+                            <tr><td><b>Total récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_recurring)}</td></tr>
+                            <tr><td><b>Total non récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_non_recurring)}</td></tr>
                         </table>
                     </div>`)
 
