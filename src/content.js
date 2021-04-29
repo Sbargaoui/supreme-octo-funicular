@@ -16,32 +16,7 @@ $(document).ready(function () {
         action: "get-token"
     }, async token => {
         if (token) {
-            const button = $("<button>Générer un screenshot</button>").click(function(e) {
-                e.preventDefault()
-                const data = []
-                $(".portlet").each((index, el) => {
-                    const step_column = ($(el).parent().first()).attr("class").replace("ui-sortable", "").replace("pip_column", "").trim()
-                    data.push({
-                        id: $(el).attr("data-id"),
-                        step_column,
-                        step_name: $(".pipe_column_pipe").eq(parseInt(step_column.replace("col", "")-1)).find(".pipe_column_pipe3").clone().children().remove().end().text().trim(),
-                        name: $(el).find(".portlet-header").text().trim(),
-                        amount: parseFloat($(el).find(".portlet-content").children().first().text().replace("€", "").replace(" ", "")),
-                        probability: parseFloat($(el).find(".portlet-content").children().eq(3).text().replace("%", "").replace(" ", ""))/100
-                    })
-                })
-                chrome.runtime.sendMessage(extensionID, {
-                    action: "db-insert",
-                    value: {
-                        company: $("select[name=team]").next().find(".select2-selection__rendered").first().text(),
-                        date: new Date(),
-                        values: data
-                    }
-                })
-                alert("Le screenshot a été créé")
-            })
-
-            $("#formtabtab1").append(button).append(dropdownScreenshotList)
+            $("#formtabtab1").append(dropdownScreenshotList)
             buildScreenshotList()
 
             dropdownScreenshotList.change(() => {
