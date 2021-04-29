@@ -48,19 +48,17 @@
                     message: 'Générer un nouveau screenshot ?',
                     loader: true
                 }">
-                    Générer un screenshot
+                    Générer un nouveau screenshot
                 </button>
-                <font-awesome-icon 
-                icon="upload"
-                size="2x"
-                class="cursor-pointer"
-                v-tooltip="'Uploader un nouveau screenshot'"
+                <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-4"
                 v-confirm="{
                     ok: dialog => upload(null),
                     message:
                         'Voulez-vous uploader un fichier JSON pour crééer un nouveau screenshot ?'
                 }"
-                />
+                >
+                    Insérer un screenshot existant
+                </button>
             </div>
             <div class="flex flex-col">
                 <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -74,9 +72,6 @@
                                         </th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Company
-                                        </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Values
                                         </th>
                                         <th scope="col" class="relative px-6 py-3">
                                             <span class="sr-only">Edit</span>
@@ -92,33 +87,33 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {{ s.company }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <json-viewer theme="json-theme" :value="s.values" :expand-depth="0"></json-viewer>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <span class="mr-2" v-tooltip="'Télécharger le screenshot'"><font-awesome-icon icon="download" size="2x" class="cursor-pointer" @click.prevent="download(s.id)" /></span>
-                                            <span class="mr-2"><font-awesome-icon 
-                                                icon="upload"
-                                                size="2x"
-                                                class="cursor-pointer"
-                                                v-tooltip="'Remplacer le contenu de ce screenshot'"
+                                        <td class="py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <span class="mr-2" v-tooltip="'Télécharger le screenshot'">
+                                                <button type="button" class="inline-flex items-center px-2 py-2 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
+                                                @click.prevent="download(s.id)">
+                                                    Télécharger
+                                                </button>
+                                            </span>
+                                            <span class="mr-2">
+                                                <button type="button" class="inline-flex items-center px-2 py-2 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
                                                 v-confirm="{
                                                     ok: dialog => upload(s.id),
                                                     message:
                                                         'Voulez-vous uploader un fichier JSON pour remplacer ce screenshot ? Les données d\'origine seront perdues'
-                                                }"
-                                            /></span>
-                                            <span><font-awesome-icon 
-                                                icon="times"
-                                                size="2x"
-                                                class="cursor-pointer"
-                                                v-tooltip="'Supprimer ce screenshot'"
+                                                }">
+                                                    Remplacer
+                                                </button>
+                                            </span>
+                                            <span>
+                                                <button type="button" class="inline-flex items-center px-2 py-2 border border-transparent text-base font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
                                                 v-confirm="{
                                                     ok: dialog => remove(s.id),
                                                     message:
                                                         'Voulez-vous vraiment supprimer ce screenshot ? Cette action ne pourra pas être annulée'
-                                                }"
-                                            /></span>
+                                                }">
+                                                    Supprimer
+                                                </button>
+                                            </span>
                                         </td>
                                     </tr>
                                 </tbody>
