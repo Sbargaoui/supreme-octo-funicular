@@ -60,6 +60,35 @@
                     Insérer un screenshot existant
                 </button>
             </div>
+
+            <h1 class="text-2xl">Export CSV</h1>
+            <div class="mb-4 flex flex-row">
+                <div class="mr-4">
+                    <label for="location" class="block text-sm font-medium text-gray-700">Screenshot début</label>
+                    <select id="location" name="location" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" v-model="screenshot1">
+                        <option disabled selected value> -- sélectionnez un screenshot -- </option>
+                        <option v-for="s of screenshots" :key="`s1-${s.id}`" :value="s.id">{{s.date | moment('from', 'now')}} - {{s.date | moment("DD/MM/YYYY HH:mm")}}</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="location" class="block text-sm font-medium text-gray-700">Screenshot fin</label>
+                    <select id="location" name="location" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" v-model="screenshot2">
+                        <option disabled selected value> -- sélectionnez un screenshot -- </option>
+                        <option v-for="s of screenshots" :key="`s2-${s.id}`" :value="s.id">{{s.date | moment('from', 'now')}} - {{s.date | moment("DD/MM/YYYY HH:mm")}}</option>
+                    </select>
+                </div>
+                <button v-if="screenshot1 && screenshot2" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-4"
+                v-confirm="{
+                    ok: exportCSV,
+                    message: 'Exporter en CSV ?',
+                    loader: true
+                }"
+                >
+                    Exporter CSV
+                </button>
+            </div>
+
+            <h1 class="text-2xl">Screenshots</h1>
             <div class="flex flex-col">
                 <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                     <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
@@ -137,7 +166,7 @@ import axios from 'axios'
 
 const browser = require("webextension-polyfill")
 
-import { TEAMS } from "../helpers"
+import { TEAMS, TEAM_RECURRING, TEAM_NON_RECURRING } from "../helpers"
 
 export default {
     components: {JsonViewer},
@@ -149,7 +178,9 @@ export default {
             form: {
                 email: "",
                 password: ""
-            }
+            },
+            screenshot1: null,
+            screenshot2: null
         }
     },
     async mounted() {
@@ -161,7 +192,10 @@ export default {
     methods: {
         async loadScreenshots() {
             this.screenshots = await browser.runtime.sendMessage({
-                action: "db-getall"
+                action: "db-select",
+                where: {
+                    company: "All"
+                }
             })
         },
         async login() {
@@ -179,7 +213,7 @@ export default {
             chrome.storage.local.set({'token': null});
             this.token = null
         },
-        async generate(dialog) {
+        async retrieveAllOpportunities() {
             const all_opportunities = []
             let next_url = "https://stafiz.net/api/opportunities"
             do {
@@ -191,6 +225,11 @@ export default {
                 all_opportunities.push(...result.data.data)
                 next_url = result.data.next_page_url
             } while(next_url)
+            return all_opportunities
+        },
+        async generate(dialog) {
+            const all_opportunities = await this.retrieveAllOpportunities()
+            
             console.log(all_opportunities)
             const open_opportunities = all_opportunities.filter(e => {
                 return e.status === "open" && (JSON.parse(e.teams).filter(t => TEAMS.find(T => t === T.id) != -1)).length > 0
@@ -231,6 +270,76 @@ export default {
         upload(id) {
             this.$refs.fileInput.click()
             this.uploadingID = id
+        },
+        async exportCSV(dialog) {
+            const s1 = this.screenshots.find(e => e.id === this.screenshot1)
+            const s2 = this.screenshots.find(e => e.id === this.screenshot2)
+            console.log(s1)
+            const rows = [
+                [ "Practice", "Total WIN", "Total LOST", "Total NEW", "Delta", "Delta TOTAL", "Total récurrent", "Total non récurrent" ]
+            ]
+
+            const result_all = await this.retrieveAllOpportunities()
+            console.log(result_all)
+            
+            for (let team of TEAMS) {
+                let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                let total_win = 0, total_lost = 0;
+                let total_win_weighted = 0, total_lost_weighted = 0;
+                let total_new_weighted = 0
+                let total_delta = 0
+
+                console.log(s1_values)
+
+                let total_recurring = 0, total_non_recurring = 0
+
+                const IDs = []
+
+                for (let new_s of s2_values) {
+                    IDs.push(new_s.id)
+                    if (new_s.teams.includes(TEAM_RECURRING)) total_recurring += new_s.amount * new_s.probability/100
+                    else if (new_s.teams.includes(TEAM_NON_RECURRING)) total_non_recurring += new_s.amount * new_s.probability/100
+
+                    const prev = s1_values.find(e => e.id == new_s.id)
+
+                    if (prev) {
+                        const old_weighted_value = prev.amount * prev.probability/100
+                        const new_weighted_value = new_s.amount * new_s.probability/100
+                        total_delta += new_weighted_value - old_weighted_value
+                    } else {
+                        total_new_weighted += new_s.amount * new_s.probability/100
+                    }
+                }
+
+                const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
+                for (let removed of removed_values) {
+                    const data = result_all.find(e => e.id === removed.id)
+                    if (data) {
+                        const won = data.status === "won";
+                        if (won) {
+                            total_win += parseFloat(data.amount)
+                            total_win_weighted += parseFloat(data.amount) * parseFloat(data.chances)/100
+                        } else {
+                            total_lost += parseFloat(data.amount)
+                            total_lost_weighted += parseFloat(data.amount) * parseFloat(data.chances)/100
+                        }
+                    }
+                }
+
+                rows.push([
+                    team.name, Math.round(total_win), Math.round(total_lost), Math.round(total_new_weighted), Math.round(total_delta), Math.round(total_delta - total_win - total_lost), Math.round(total_recurring), Math.round(total_non_recurring)
+                ])
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            console.log(this.screenshot1)
+            link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}.csv`);
+            link.click();
+            dialog.close()
         },
         onFilePicked(event) {
             const files = event.target.files

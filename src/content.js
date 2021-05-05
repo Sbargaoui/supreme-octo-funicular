@@ -11,6 +11,19 @@ function formatCurrency(amount) {
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount)
 }
 
+async function retrieveAllOpportunities() {
+    
+}
+
+const CardsColor = {
+    CHANGE: '#F79F1F',
+    CHANGE_DECREASE: "#fd79a8",
+    CHANGE_INCREASE: '#78e08f',
+    NEW: "#fffa65",
+    WON: '#cd84f1',
+    LOST: '#e55039'
+}
+
 $(document).ready(function () {
     chrome.runtime.sendMessage(extensionID, {
         action: "get-token"
@@ -19,7 +32,20 @@ $(document).ready(function () {
             $("#formtabtab1").append(dropdownScreenshotList)
             buildScreenshotList()
 
-            dropdownScreenshotList.change(() => {
+            dropdownScreenshotList.change(async () => {
+                const all_opportunities = []
+                let next_url = "https://stafiz.net/api/opportunities"
+                do {
+                    const result = await $.ajax({
+                        url: next_url,
+                        headers: {
+                            Authorization: "Bearer " + token
+                        }
+                    })
+                    all_opportunities.push(...result.data)
+                    next_url = result.next_page_url
+                } while(next_url)
+                
                 const id = dropdownScreenshotList.val()
                 chrome.runtime.sendMessage(extensionID, {
                     action: "db-get",
@@ -50,7 +76,6 @@ $(document).ready(function () {
                     $('.portlet').css('background-color', '')
                     $('.portlet').removeClass("extension-new")
                     $('.portlet').removeClass("extension-changes")
-                    const promises = []
                     $(".portlet").each((index, el) => {
                         const new_amount = parseFloat($(el).find(".portlet-content").children().first().text().replace("€", "").replace(" ", ""))
                         const new_probability = parseFloat($(el).find(".portlet-content").children().eq(3).text().replace("%", "").replace(" ", ""))
@@ -62,6 +87,12 @@ $(document).ready(function () {
                         $(el).find(".portlet-content").children().eq(3).after(`<br class="extension" /><span class="extension weighted">Valeur pondérée : ${formatCurrency(new_weighted_value)}</span>`)
 
                         const id = $(el).attr("data-id")
+
+                        const opp = all_opportunities.find(e => e.id === parseInt(id))
+                        if (JSON.parse(opp.teams).includes(TEAM_RECURRING)) total_recurring += parseFloat(opp.amount) * opp.chances/100
+                        else if (JSON.parse(opp.teams).includes(TEAM_NON_RECURRING)) total_non_recurring += parseFloat(opp.amount) * opp.chances/100
+                        
+
                         IDs.push(id)
                         const prev = screenshot.values.find(e => e.id == id)
 
@@ -69,15 +100,17 @@ $(document).ready(function () {
                             prev.step_name = columnNameFromID(prev.column_id)
                             let changes = false, decrease = false, increase = false
 
-                            if (prev.teams.includes(TEAM_RECURRING)) total_recurring = prev.amount * prev.probability/100
-                            else if (prev.teams.includes(TEAM_NON_RECURRING)) total_non_recurring = prev.amount * prev.probability/100
+                            console.log(new_amount, new_probability)
+
+                            // if (prev.teams.includes(TEAM_RECURRING)) total_recurring += new_amount * new_probability/100
+                            // else if (prev.teams.includes(TEAM_NON_RECURRING)) total_non_recurring += new_amount * new_probability/100
 
                             const old_weighted_value = prev.amount * prev.probability/100
                             if (new_weighted_value != old_weighted_value) {
                                 let icon = ''
                                 if (old_weighted_value < new_weighted_value) icon = '➚'
                                 else if (old_weighted_value > new_weighted_value) icon = '➘'
-                                $(el).find(".portlet-content").find(".weighted").append(`${icon} (prec. ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(old_weighted_value)})<br />Delta pondéré : ${formatCurrency(new_weighted_value - old_weighted_value)}`)
+                                $(el).find(".portlet-content").find(".weighted").append(`${icon} (prec. ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(old_weighted_value)})<br /><b>Delta pondéré : ${formatCurrency(new_weighted_value - old_weighted_value)}</b>`)
                                 total_delta += new_weighted_value - old_weighted_value
                             }
 
@@ -113,30 +146,17 @@ $(document).ready(function () {
                             }
 
                             if (changes) {
-                                $(el).css("background-color", decrease ? "#fd79a8" : increase ? '#2ecc71' : '#F79F1F')
+                                $(el).css("background-color", decrease ? CardsColor.CHANGE_DECREASE : increase ? CardsColor.CHANGE_INCREASE : CardsColor.CHANGE)
                                 $(el).addClass("extension-changes")
                             }
                         } else {
-                            $(el).css("background-color", "#FFC312")
+                            $(el).css("background-color", CardsColor.NEW)
                             $(el).find('.portlet-header').prepend("<span class='extension'>(new) </span>")
                             $(el).addClass("extension-new")
-
-                            promises.push($.ajax({
-                                url: "https://stafiz.net/api/opportunities/" + id,
-                                headers: {
-                                    "Authorization": "Bearer " + token
-                                }
-                            }))
 
                             total_new_weighted += new_amount * new_probability/100
                         }
                     })
-                    const new_data = await $.when(...promises).then((...results) => results)
-                    $.each(new_data, (_, data) => {
-                        if (JSON.parse(data[0][0].teams).includes(TEAM_RECURRING)) total_recurring += parseFloat(data[0][0].amount) * data[0][0].chances/100
-                        else if (JSON.parse(data[0][0].teams).includes(TEAM_NON_RECURRING)) total_non_recurring += parseFloat(data[0][0].amount) * data[0][0].chances/100
-                    })
-
                     const removed_values = screenshot.values.filter(e => IDs.indexOf(e.id.toString()) === -1)
                     console.log(removed_values)
                     for (let e of removed_values) {
@@ -148,29 +168,38 @@ $(document).ready(function () {
                             }
                         })
 
-                        const column = $(`input[value="${e.column_id}"]`).attr("id").replace("colorder_of_", "")
-                        const won = data.length > 0 && data[0].status === "won";
+                        if(data[0]) {
+                            const data_client = await $.ajax({
+                                url: "https://stafiz.net/api/crmorgas/" + data[0].client_company,
+                                headers: {
+                                    "Authorization": "Bearer " + token
+                                }
+                            })
 
-                        if (won) {
-                            total_win += e.amount
-                            total_win_weighted += e.amount * e.probability/100
-                        } else {
-                            total_lost += e.amount
-                            total_lost_weighted += e.amount * e.probability/100
+                            const column = $(`input[value="${e.column_id}"]`).attr("id").replace("colorder_of_", "")
+                            const won = data.length > 0 && data[0].status === "won";
+
+                            if (won) {
+                                total_win += e.amount
+                                total_win_weighted += e.amount * e.probability/100
+                            } else {
+                                total_lost += e.amount
+                                total_lost_weighted += e.amount * e.probability/100
+                            }
+                            
+                            $(`<div class="portlet ui-widget ui-widget-content ui-helper-clearfix ui-corner-all extension-new" data-id="${e.id}" style="background-color: ${won ? CardsColor.WON : CardsColor.LOST}">
+                                <div class="extension portlet-header ui-sortable-handle ui-widget-header ui-corner-all">(${won ? 'Gagnée' : 'Perdue'})
+                                ${data_client[0].name} - ${e.job_name}
+                                </div>
+                                <div class="portlet-content">
+                                    <span class="g_nowrap">${formatCurrency(e.amount)}</span>
+                                    <br>
+                                    <span class="pipe_litgr">Probabilité : </span><span>${e.probability}%</span>
+                                    <br>
+                                    ${!won && data.length > 0 && data[0].reazon ? `Raison : ${JSON.parse(data[0].reazon).select}${JSON.parse(data[0].reazon).comment ? ` / ${JSON.parse(data[0].reazon).comment}` : ''}` : ''}
+                                </div>
+                            </div>`).appendTo(`.col${column}`)
                         }
-                        
-                        $(`<div class="portlet ui-widget ui-widget-content ui-helper-clearfix ui-corner-all extension-new" data-id="${e.id}" style="background-color: ${won ? '#9b59b6' : '#e55039'}">
-                            <div class="extension portlet-header ui-sortable-handle ui-widget-header ui-corner-all">(${won ? 'Gagnée' : 'Perdue'})
-                            ${e.job_name}
-                            </div>
-                            <div class="portlet-content">
-                                <span class="g_nowrap">${formatCurrency(e.amount)}</span>
-                                <br>
-                                <span class="pipe_litgr">Probabilité : </span><span>${e.probability}%</span>
-                                <br>
-                                ${!won && data.length > 0 && data[0].reazon ? `Raison : ${JSON.parse(data[0].reazon).select}${JSON.parse(data[0].reazon).comment ? ` / ${JSON.parse(data[0].reazon).comment}` : ''}` : ''}
-                            </div>
-                        </div>`).appendTo(`.col${column}`)
                     }
                     $("#formtabtab1").after(`<div style='text-align:left;'>
                         <ul style='list-style: none;'>
@@ -178,7 +207,8 @@ $(document).ready(function () {
                             <tr><td><b>Total WIN</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_win)} (pondéré ${formatCurrency(total_win_weighted)})</td></tr>
                             <tr><td><b>Total LOST</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_lost)} (pondéré ${formatCurrency(total_lost_weighted)})</td></tr>
                             <tr><td><b>Total NEW</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_new_weighted)}</td></tr>
-                            <tr><td><b>Évolution</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta)}</td></tr>
+                            <tr><td><b>Delta</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta)}</td></tr>
+                            <tr><td><b>Delta TOTAL</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta - total_win - total_lost)}</td></tr>
                             <tr><td><b>Total récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_recurring)}</td></tr>
                             <tr><td><b>Total non récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_non_recurring)}</td></tr>
                         </table>
@@ -208,7 +238,7 @@ function buildScreenshotList() {
         }
     }, screenshots => {
         console.log(screenshots)
-        $('<option  disabled selected value> -- sélectionnez un screenshot -- </option>').appendTo(dropdownScreenshotList);
+        $('<option disabled selected value> -- sélectionnez un screenshot -- </option>').appendTo(dropdownScreenshotList);
         for(let val of screenshots) {
             $('<option />', {value: val.id, text: `${moment(val.date).fromNow()} - ${moment(val.date).format("DD/MM/YYYY HH:mm")}`}).appendTo(dropdownScreenshotList);
         }
