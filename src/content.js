@@ -11,10 +11,6 @@ function formatCurrency(amount) {
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount)
 }
 
-async function retrieveAllOpportunities() {
-    
-}
-
 const CardsColor = {
     CHANGE: '#F79F1F',
     CHANGE_DECREASE: "#fd79a8",
@@ -23,6 +19,15 @@ const CardsColor = {
     WON: '#cd84f1',
     LOST: '#e55039'
 }
+
+$(`<style type='text/css'>
+#report table, #report th, #report td {
+    border: 1px solid black;
+    padding: 10px;
+}
+#report table {
+    border-collapse: collapse;
+}</style>`).appendTo("head");
 
 $(document).ready(function () {
     chrome.runtime.sendMessage(extensionID, {
@@ -68,7 +73,15 @@ $(document).ready(function () {
                     let total_new_weighted = 0
                     let total_delta = 0
 
-                    let total_recurring = 0, total_non_recurring = 0
+                    /**/ let total_recurring_weighted = 0, total_non_recurring_weighted = 0
+                    /**/ let total_recurring = 0, total_non_recurring = 0
+                    /**/ let total_delta_recurring = 0, total_delta_non_recurring = 0
+                    /**/ let total_win_recurring = 0, total_win_non_recurring = 0
+                    /**/ let total_win_weighted_recurring = 0, total_win_weighted_non_recurring = 0
+                    /**/ let total_lost_recurring = 0, total_lost_non_recurring = 0
+                    /**/ let total_lost_weighted_recurring = 0, total_lost_weighted_non_recurring = 0
+                    /**/ let total_new_recurring_weighted = 0, total_new_non_recurring_weighted = 0
+
 
                     const IDs = []
 
@@ -89,9 +102,15 @@ $(document).ready(function () {
                         const id = $(el).attr("data-id")
 
                         const opp = all_opportunities.find(e => e.id === parseInt(id))
-                        if (JSON.parse(opp.teams).includes(TEAM_RECURRING)) total_recurring += parseFloat(opp.amount) * opp.chances/100
-                        else if (JSON.parse(opp.teams).includes(TEAM_NON_RECURRING)) total_non_recurring += parseFloat(opp.amount) * opp.chances/100
-                        
+                        opp.teams = JSON.parse(opp.teams)
+                        if (opp.teams.includes(TEAM_RECURRING)) {
+                            total_recurring_weighted += parseFloat(opp.amount) * opp.chances/100
+                            total_recurring += parseFloat(opp.amount)
+                        }
+                        else if (opp.teams.includes(TEAM_NON_RECURRING)) {
+                            total_non_recurring_weighted += parseFloat(opp.amount) * opp.chances/100
+                            total_non_recurring += parseFloat(opp.amount)
+                        }
 
                         IDs.push(id)
                         const prev = screenshot.values.find(e => e.id == id)
@@ -112,6 +131,13 @@ $(document).ready(function () {
                                 else if (old_weighted_value > new_weighted_value) icon = '➘'
                                 $(el).find(".portlet-content").find(".weighted").append(`${icon} (prec. ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(old_weighted_value)})<br /><b>Delta pondéré : ${formatCurrency(new_weighted_value - old_weighted_value)}</b>`)
                                 total_delta += new_weighted_value - old_weighted_value
+
+                                if (opp.teams.includes(TEAM_RECURRING)) {
+                                    total_delta_recurring += new_weighted_value - old_weighted_value
+                                }
+                                else if (opp.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_delta_non_recurring += new_weighted_value - old_weighted_value
+                                }
                             }
 
                             if (prev.amount != new_amount) {
@@ -155,6 +181,12 @@ $(document).ready(function () {
                             $(el).addClass("extension-new")
 
                             total_new_weighted += new_amount * new_probability/100
+                            if (opp.teams.includes(TEAM_RECURRING)) {
+                                total_new_recurring_weighted += new_amount * new_probability/100
+                            }
+                            else if (opp.teams.includes(TEAM_NON_RECURRING)) {
+                                total_new_non_recurring_weighted += new_amount * new_probability/100
+                            }
                         }
                     })
                     const removed_values = screenshot.values.filter(e => IDs.indexOf(e.id.toString()) === -1)
@@ -175,16 +207,34 @@ $(document).ready(function () {
                                     "Authorization": "Bearer " + token
                                 }
                             })
-
+                            data[0].teams = JSON.parse(data[0].teams)
                             const column = $(`input[value="${e.column_id}"]`).attr("id").replace("colorder_of_", "")
                             const won = data.length > 0 && data[0].status === "won";
 
                             if (won) {
                                 total_win += e.amount
                                 total_win_weighted += e.amount * e.probability/100
+
+                                if (data[0].teams.includes(TEAM_RECURRING)) {
+                                    total_win_recurring += e.amount
+                                    total_win_weighted_recurring = e.amount * e.probability/100
+                                }
+                                else if (data[0].teams.includes(TEAM_NON_RECURRING)) {
+                                    total_win_non_recurring += e.amount
+                                    total_win_weighted_non_recurring = e.amount * e.probability/100
+                                }
                             } else {
                                 total_lost += e.amount
                                 total_lost_weighted += e.amount * e.probability/100
+
+                                if (data[0].teams.includes(TEAM_RECURRING)) {
+                                    total_lost_recurring += e.amount
+                                    total_lost_weighted_recurring = e.amount * e.probability/100
+                                }
+                                else if (data[0].teams.includes(TEAM_NON_RECURRING)) {
+                                    total_lost_non_recurring += e.amount
+                                    total_lost_weighted_non_recurring = e.amount * e.probability/100
+                                }
                             }
                             
                             $(`<div class="portlet ui-widget ui-widget-content ui-helper-clearfix ui-corner-all extension-new" data-id="${e.id}" style="background-color: ${won ? CardsColor.WON : CardsColor.LOST}">
@@ -207,10 +257,49 @@ $(document).ready(function () {
                             <tr><td><b>Total WIN</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_win)} (pondéré ${formatCurrency(total_win_weighted)})</td></tr>
                             <tr><td><b>Total LOST</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_lost)} (pondéré ${formatCurrency(total_lost_weighted)})</td></tr>
                             <tr><td><b>Total NEW</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_new_weighted)}</td></tr>
-                            <tr><td><b>Delta</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta)}</td></tr>
-                            <tr><td><b>Delta TOTAL</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta - total_win_weighted - total_lost_weighted)}</td></tr>
+                            <tr><td><b>Évolution</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta)}</td></tr>
+                            <tr><td><b>Évolution TOTAL</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta - total_win_weighted - total_lost_weighted)}</td></tr>
                             <tr><td><b>Total récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_recurring)}</td></tr>
                             <tr><td><b>Total non récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_non_recurring)}</td></tr>
+                        </table>
+
+                        <table id="report" style="margin-top: 10px;">
+                            <tr>
+                                <td></td>
+                                <td><b>Evolution pipe pondéré</b></td>
+                                <td style="background-color: ${CardsColor.LOST}"><b>LOST</b></td>
+                                <td style="background-color: ${CardsColor.WON}"><b>WIN</b></td>
+                                <td style="background-color: ${CardsColor.NEW}"><b>NEW</b></td>
+                                <td><b>Evolution</b></td>
+                                <td ><b>WIN non pondéré</b></td>
+                                <td><b>LOST non pondéré</b></td>
+                                <td><b>Total pipe non pondéré</b></td>
+                                <td><b>Total pipe pondéré</b></td>
+                            </tr>
+                            <tr>
+                                <td><b>Récurrent</b></td>
+                                <td>${formatCurrency(total_delta_recurring)}</td>
+                                <td>${formatCurrency(total_lost_weighted_recurring)}</td>
+                                <td>${formatCurrency(total_win_weighted_recurring)}</td>
+                                <td>${formatCurrency(total_new_recurring_weighted)}</td>
+                                <td>${formatCurrency(total_delta_recurring)}</td>
+                                <td>${formatCurrency(total_win_recurring)}</td>
+                                <td>${formatCurrency(total_lost_recurring)}</td>
+                                <td>${formatCurrency(total_recurring)}</td>
+                                <td>${formatCurrency(total_recurring_weighted)}</td>
+                            </tr>
+                            <tr>
+                                <td><b>Non récurrent</b></td>
+                                <td>${formatCurrency(total_delta_non_recurring)}</td>
+                                <td>${formatCurrency(total_lost_weighted_non_recurring)}</td>
+                                <td>${formatCurrency(total_win_weighted_non_recurring)}</td>
+                                <td>${formatCurrency(total_new_non_recurring_weighted)}</td>
+                                <td>${formatCurrency(total_delta_non_recurring)}</td>
+                                <td>${formatCurrency(total_win_non_recurring)}</td>
+                                <td>${formatCurrency(total_lost_non_recurring)}</td>
+                                <td>${formatCurrency(total_non_recurring)}</td>
+                                <td>${formatCurrency(total_non_recurring_weighted)}</td>
+                            </tr>
                         </table>
                     </div>`)
 

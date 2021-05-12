@@ -285,6 +285,7 @@ export default {
             for (let team of TEAMS) {
                 let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
                 let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                
                 let total_win = 0, total_lost = 0;
                 let total_win_weighted = 0, total_lost_weighted = 0;
                 let total_new_weighted = 0
