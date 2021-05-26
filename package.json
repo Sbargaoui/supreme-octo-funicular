@@ -1,6 +1,6 @@
 {
   "name": "quantmetry-stafiz",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Augmenter les informations de Stafiz",
   "main": "background.js",
   "scripts": {
