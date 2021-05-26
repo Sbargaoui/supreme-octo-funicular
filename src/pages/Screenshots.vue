@@ -275,8 +275,9 @@ export default {
             const s1 = this.screenshots.find(e => e.id === this.screenshot1)
             const s2 = this.screenshots.find(e => e.id === this.screenshot2)
             console.log(s1)
+
             const rows = [
-                [ "Practice", "Total WIN", "Total LOST", "Total NEW", "Delta", "Delta TOTAL", "Total récurrent", "Total non récurrent" ]
+                [ "Practice" ]
             ]
 
             const result_all = await this.retrieveAllOpportunities()
@@ -291,16 +292,29 @@ export default {
                 let total_new_weighted = 0
                 let total_delta = 0
 
-                console.log(s1_values)
-
+                let total_recurring_weighted = 0, total_non_recurring_weighted = 0
                 let total_recurring = 0, total_non_recurring = 0
+                let total_delta_recurring = 0, total_delta_non_recurring = 0
+                let total_win_recurring = 0, total_win_non_recurring = 0
+                let total_win_weighted_recurring = 0, total_win_weighted_non_recurring = 0
+                let total_lost_recurring = 0, total_lost_non_recurring = 0
+                let total_lost_weighted_recurring = 0, total_lost_weighted_non_recurring = 0
+                let total_new_recurring_weighted = 0, total_new_non_recurring_weighted = 0
+
+                console.log(s1_values)
 
                 const IDs = []
 
                 for (let new_s of s2_values) {
                     IDs.push(new_s.id)
-                    if (new_s.teams.includes(TEAM_RECURRING)) total_recurring += new_s.amount * new_s.probability/100
-                    else if (new_s.teams.includes(TEAM_NON_RECURRING)) total_non_recurring += new_s.amount * new_s.probability/100
+                    if (new_s.teams.includes(TEAM_RECURRING)) {
+                        total_recurring += new_s.amount
+                        total_recurring_weighted += new_s.amount * new_s.probability/100
+                    }
+                    else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                        total_non_recurring += new_s.amount
+                        total_non_recurring_weighted += new_s.amount * new_s.probability/100
+                    }
 
                     const prev = s1_values.find(e => e.id == new_s.id)
 
@@ -308,8 +322,21 @@ export default {
                         const old_weighted_value = prev.amount * prev.probability/100
                         const new_weighted_value = new_s.amount * new_s.probability/100
                         total_delta += new_weighted_value - old_weighted_value
+
+                        if (new_s.teams.includes(TEAM_RECURRING)) {
+                            total_delta_recurring += new_weighted_value - old_weighted_value
+                        }
+                        else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                            total_delta_non_recurring += new_weighted_value - old_weighted_value
+                        }
                     } else {
                         total_new_weighted += new_s.amount * new_s.probability/100
+                        if (new_s.teams.includes(TEAM_RECURRING)) {
+                            total_new_recurring_weighted += new_s.amount * new_s.probability/100
+                        }
+                        else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                            total_new_non_recurring_weighted += new_s.amount * new_s.probability/100
+                        }
                     }
                 }
 
@@ -319,18 +346,52 @@ export default {
                     if (data) {
                         const won = data.status === "won";
                         if (won) {
-                            total_win += parseFloat(data.amount)
-                            total_win_weighted += parseFloat(data.amount) * parseFloat(data.chances)/100
+                            total_win += removed.amount
+                            total_win_weighted += removed.amount * removed.probability/100
+
+                            if (data.teams.includes(TEAM_RECURRING)) {
+                                total_win_recurring += removed.amount
+                                total_win_weighted_recurring += removed.amount * removed.probability/100
+                            }
+                            else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                total_win_non_recurring += removed.amount
+                                total_win_weighted_non_recurring += removed.amount * removed.probability/100
+                            }
                         } else {
-                            total_lost += parseFloat(data.amount)
-                            total_lost_weighted += parseFloat(data.amount) * parseFloat(data.chances)/100
+                            total_lost += removed.amount
+                            total_lost_weighted += removed.amount * removed.probability/100
+
+                            if (data.teams.includes(TEAM_RECURRING)) {
+                                total_lost_recurring += removed.amount
+                                total_lost_weighted_recurring += removed.amount * removed.probability/100
+                            }
+                            else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                total_lost_non_recurring += removed.amount
+                                total_lost_weighted_non_recurring += removed.amount * removed.probability/100
+                            }
                         }
                     }
                 }
 
+                rows.push(
+                    [team.name, "Récurrent", "Evolution pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
+                )
+
                 rows.push([
-                    team.name, Math.round(total_win), Math.round(total_lost), Math.round(total_new_weighted), Math.round(total_delta), Math.round(total_delta - total_win - total_lost), Math.round(total_recurring), Math.round(total_non_recurring)
+                    "", "", Math.round(total_delta_recurring + total_new_recurring_weighted - total_lost_weighted_recurring - total_win_weighted_recurring), total_lost_weighted_recurring, total_win_weighted_recurring, total_new_recurring_weighted, Math.round(total_delta_recurring), total_win_recurring, total_lost_recurring, total_recurring, total_recurring_weighted 
                 ])
+
+                rows.push([])
+
+                rows.push(
+                    ["", "Non récurrent", "Evolution pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
+                )
+
+                rows.push([
+                    "", "", Math.round(total_delta_non_recurring + total_new_non_recurring_weighted - total_lost_weighted_non_recurring - total_win_weighted_non_recurring), total_lost_weighted_non_recurring, total_win_weighted_non_recurring, total_new_non_recurring_weighted, Math.round(total_delta_non_recurring), total_win_non_recurring, total_lost_non_recurring, total_non_recurring, total_non_recurring_weighted
+                ])
+
+                rows.push([], [])
             }
 
             let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");

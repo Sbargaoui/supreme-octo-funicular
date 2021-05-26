@@ -57,7 +57,6 @@ $(document).ready(function () {
                     id: parseInt(id)
                 }, async screenshot => {
                     const teamName = $("select[name=team]").next().find(".select2-selection__rendered").first().text()
-                    console.log(teamName)
                     if (teamName !== "Entreprise") {
                         screenshot.values = screenshot.values.filter(e => e.teams.indexOf(teamIdFromName(teamName)) !== -1)
                     } else {
@@ -66,7 +65,6 @@ $(document).ready(function () {
                             return (e.teams.filter(t => TEAMS.find(T => t === T.id) != -1)).length > 0
                         })
                     }
-                    console.log(screenshot)
 
                     let total_win = 0, total_lost = 0;
                     let total_win_weighted = 0, total_lost_weighted = 0;
@@ -118,8 +116,6 @@ $(document).ready(function () {
                         if (prev) {
                             prev.step_name = columnNameFromID(prev.column_id)
                             let changes = false, decrease = false, increase = false
-
-                            console.log(new_amount, new_probability)
 
                             // if (prev.teams.includes(TEAM_RECURRING)) total_recurring += new_amount * new_probability/100
                             // else if (prev.teams.includes(TEAM_NON_RECURRING)) total_non_recurring += new_amount * new_probability/100
@@ -190,9 +186,7 @@ $(document).ready(function () {
                         }
                     })
                     const removed_values = screenshot.values.filter(e => IDs.indexOf(e.id.toString()) === -1)
-                    console.log(removed_values)
                     for (let e of removed_values) {
-                        console.log(e)
                         const data = await $.ajax({
                             url: "https://stafiz.net/api/opportunities/" + e.id,
                             headers: {
@@ -217,11 +211,11 @@ $(document).ready(function () {
 
                                 if (data[0].teams.includes(TEAM_RECURRING)) {
                                     total_win_recurring += e.amount
-                                    total_win_weighted_recurring = e.amount * e.probability/100
+                                    total_win_weighted_recurring += e.amount * e.probability/100
                                 }
                                 else if (data[0].teams.includes(TEAM_NON_RECURRING)) {
                                     total_win_non_recurring += e.amount
-                                    total_win_weighted_non_recurring = e.amount * e.probability/100
+                                    total_win_weighted_non_recurring += e.amount * e.probability/100
                                 }
                             } else {
                                 total_lost += e.amount
@@ -229,11 +223,11 @@ $(document).ready(function () {
 
                                 if (data[0].teams.includes(TEAM_RECURRING)) {
                                     total_lost_recurring += e.amount
-                                    total_lost_weighted_recurring = e.amount * e.probability/100
+                                    total_lost_weighted_recurring += e.amount * e.probability/100
                                 }
                                 else if (data[0].teams.includes(TEAM_NON_RECURRING)) {
                                     total_lost_non_recurring += e.amount
-                                    total_lost_weighted_non_recurring = e.amount * e.probability/100
+                                    total_lost_weighted_non_recurring += e.amount * e.probability/100
                                 }
                             }
                             
