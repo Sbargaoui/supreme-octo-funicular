@@ -84,7 +84,16 @@
                     loader: true
                 }"
                 >
-                    Exporter CSV
+                    Exporter CSV résumé
+                </button>
+                <button v-if="screenshot1 && screenshot2" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-4"
+                v-confirm="{
+                    ok: exportCSVFull,
+                    message: 'Exporter en CSV ?',
+                    loader: true
+                }"
+                >
+                    Exporter CSV détaillé
                 </button>
             </div>
 
@@ -400,6 +409,59 @@ export default {
             link.setAttribute("href", encodedUri);
             console.log(this.screenshot1)
             link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}.csv`);
+            link.click();
+            dialog.close()
+        },
+        async exportCSVFull(dialog) {
+            const s1 = this.screenshots.find(e => e.id === this.screenshot1)
+            const s2 = this.screenshots.find(e => e.id === this.screenshot2)
+
+            const rows = [
+                [ "Practice", "Job name", "Type", "Date 1", "Status 1", "Amount 1", "Probability 1", "Created at 1", "Sale date 1", "Date 2", "Status 2", "Amount 2", "Probability 2", "Created at 2", "Sale date 2" ]
+            ]
+
+            const result_all = await this.retrieveAllOpportunities()
+
+            for (let team of TEAMS) {
+                let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
+
+                const IDs = []
+
+                for (let new_s of s2_values) {
+                    IDs.push(new_s.id)
+                    
+                    const row = [ team.name, new_s.job_name, new_s.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring" ]
+
+                    const prev = s1_values.find(e => e.id == new_s.id)
+
+                    if (prev) {
+                        row.push(s1.date, prev.status, prev.amount, prev.probability, prev.created_at, prev.sale)
+                    } else {
+                        row.push(s1.date, "", "", "", "", "")
+                    }
+
+                    row.push(s2.date, new_s.status, new_s.amount, new_s.probability, new_s.created_at, new_s.sale)
+
+                    rows.push(row)
+                }
+
+                const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
+                for (let removed of removed_values) {
+                    const data = result_all.find(e => e.id === removed.id)
+                    const won = data.status === "won";
+
+                    const row = [ team.name, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, won ? "Won" : "Lost", removed.amount, removed.probability, removed.created_at, removed.sale ]
+
+                    rows.push(row)
+                }
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}-full.csv`);
             link.click();
             dialog.close()
         },
