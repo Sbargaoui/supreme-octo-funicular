@@ -252,15 +252,15 @@ $(document).ready(function () {
                             <tr><td><b>Total LOST</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_lost)} (pondéré ${formatCurrency(total_lost_weighted)})</td></tr>
                             <tr><td><b>Total NEW</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_new_weighted)}</td></tr>
                             <tr><td><b>Évolution</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta)}</td></tr>
-                            <tr><td><b>Évolution TOTAL</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta + total_new_weighted - total_win_weighted - total_lost_weighted)}</td></tr>
-                            <tr><td><b>Total récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_recurring)}</td></tr>
-                            <tr><td><b>Total non récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_non_recurring)}</td></tr>
+                            <tr><td><b>Total delta pipe pondéré</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_delta + total_new_weighted - total_win_weighted - total_lost_weighted)}</td></tr>
+                            <tr><td><b>Total récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_recurring)} (pondéré ${formatCurrency(total_recurring_weighted)})</td></tr>
+                            <tr><td><b>Total non récurrent</b>&nbsp;&nbsp;</td><td>${formatCurrency(total_non_recurring)} (pondéré ${formatCurrency(total_non_recurring_weighted)})</td></tr>
                         </table>
 
                         <table id="report" style="margin-top: 10px;">
                             <tr>
                                 <td></td>
-                                <td><b>Evolution pipe pondéré</b></td>
+                                <td><b>Delta pipe pondéré</b></td>
                                 <td style="background-color: ${CardsColor.LOST}"><b>LOST</b></td>
                                 <td style="background-color: ${CardsColor.WON}"><b>WIN</b></td>
                                 <td style="background-color: ${CardsColor.NEW}"><b>NEW</b></td>

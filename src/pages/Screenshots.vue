@@ -88,6 +88,15 @@
                 </button>
                 <button v-if="screenshot1 && screenshot2" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-4"
                 v-confirm="{
+                    ok: exportXLS,
+                    message: 'Exporter en XLS ?',
+                    loader: true
+                }"
+                >
+                    Exporter Excel résumé
+                </button>
+                <button v-if="screenshot1 && screenshot2" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-4"
+                v-confirm="{
                     ok: exportCSVFull,
                     message: 'Exporter en CSV ?',
                     loader: true
@@ -383,7 +392,7 @@ export default {
                 }
 
                 rows.push(
-                    [team.name, "Récurrent", "Evolution pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
+                    [team.name, "Récurrent", "Delta pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
                 )
 
                 rows.push([
@@ -393,7 +402,7 @@ export default {
                 rows.push([])
 
                 rows.push(
-                    ["", "Non récurrent", "Evolution pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
+                    ["", "Non récurrent", "Delta pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
                 )
 
                 rows.push([
@@ -411,6 +420,226 @@ export default {
             link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}.csv`);
             link.click();
             dialog.close()
+        },
+        async exportXLS(dialog) {
+            console.log("test")
+            try {
+                const ExcelJS = require('exceljs');
+
+                console.log(ExcelJS)
+
+                const s1 = this.screenshots.find(e => e.id === this.screenshot1)
+                const s2 = this.screenshots.find(e => e.id === this.screenshot2)
+                console.log(s1)
+
+                const workbook = new ExcelJS.Workbook();
+                const sheet = workbook.addWorksheet('Screenshot details');
+                sheet.properties.defaultColWidth = 20
+                sheet.properties.defaultRowHeight = 20
+                new Array("E", "F", "G").map(k => sheet.getColumn(k).width = 10)
+                new Array("B").map(k => sheet.getColumn(k).width = 12)
+                new Array("C", "D").map(k => sheet.getColumn(k).width = 15)
+
+                let row = sheet.addRow(["Practice"])
+                row.getCell("A").font = { bold: true }
+                row.getCell("A").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: "FFD9D9D9" } }
+
+                const result_all = await this.retrieveAllOpportunities()
+                console.log(result_all)
+                
+                for (let team of TEAMS) {
+                    let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                    let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                    
+                    let total_win = 0, total_lost = 0;
+                    let total_win_weighted = 0, total_lost_weighted = 0;
+                    let total_new_weighted = 0
+                    let total_delta = 0
+
+                    let total_recurring_weighted = 0, total_non_recurring_weighted = 0
+                    let total_recurring = 0, total_non_recurring = 0
+                    let total_delta_recurring = 0, total_delta_non_recurring = 0
+                    let total_win_recurring = 0, total_win_non_recurring = 0
+                    let total_win_weighted_recurring = 0, total_win_weighted_non_recurring = 0
+                    let total_lost_recurring = 0, total_lost_non_recurring = 0
+                    let total_lost_weighted_recurring = 0, total_lost_weighted_non_recurring = 0
+                    let total_new_recurring_weighted = 0, total_new_non_recurring_weighted = 0
+
+                    console.log(s1_values)
+
+                    const IDs = []
+
+                    for (let new_s of s2_values) {
+                        IDs.push(new_s.id)
+                        if (new_s.teams.includes(TEAM_RECURRING)) {
+                            total_recurring += new_s.amount
+                            total_recurring_weighted += new_s.amount * new_s.probability/100
+                        }
+                        else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                            total_non_recurring += new_s.amount
+                            total_non_recurring_weighted += new_s.amount * new_s.probability/100
+                        }
+
+                        const prev = s1_values.find(e => e.id == new_s.id)
+
+                        if (prev) {
+                            const old_weighted_value = prev.amount * prev.probability/100
+                            const new_weighted_value = new_s.amount * new_s.probability/100
+                            total_delta += new_weighted_value - old_weighted_value
+
+                            if (new_s.teams.includes(TEAM_RECURRING)) {
+                                total_delta_recurring += new_weighted_value - old_weighted_value
+                            }
+                            else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                                total_delta_non_recurring += new_weighted_value - old_weighted_value
+                            }
+                        } else {
+                            total_new_weighted += new_s.amount * new_s.probability/100
+                            if (new_s.teams.includes(TEAM_RECURRING)) {
+                                total_new_recurring_weighted += new_s.amount * new_s.probability/100
+                            }
+                            else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                                total_new_non_recurring_weighted += new_s.amount * new_s.probability/100
+                            }
+                        }
+                    }
+
+                    const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
+                    for (let removed of removed_values) {
+                        const data = result_all.find(e => e.id === removed.id)
+                        if (data) {
+                            const won = data.status === "won";
+                            if (won) {
+                                total_win += removed.amount
+                                total_win_weighted += removed.amount * removed.probability/100
+
+                                if (data.teams.includes(TEAM_RECURRING)) {
+                                    total_win_recurring += removed.amount
+                                    total_win_weighted_recurring += removed.amount * removed.probability/100
+                                }
+                                else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_win_non_recurring += removed.amount
+                                    total_win_weighted_non_recurring += removed.amount * removed.probability/100
+                                }
+                            } else {
+                                total_lost += removed.amount
+                                total_lost_weighted += removed.amount * removed.probability/100
+
+                                if (data.teams.includes(TEAM_RECURRING)) {
+                                    total_lost_recurring += removed.amount
+                                    total_lost_weighted_recurring += removed.amount * removed.probability/100
+                                }
+                                else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_lost_non_recurring += removed.amount
+                                    total_lost_weighted_non_recurring += removed.amount * removed.probability/100
+                                }
+                            }
+                        }
+                    }
+
+                    /** RECURRING ROW */
+                    row = sheet.addRow([team.name, "Récurrent", "Δ pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré"])
+                    row.getCell("A").font = { bold: true, size: 9 }
+                    row.getCell("A").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: "FFD9D9D9" } }
+                    row.getCell('B').font = { italic: true, size: 9 }
+                    row.getCell('F').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: "FFFFFF00" } }
+                    new Array("C", "D", "E", "F").map(k => {
+                        row.getCell(k).font = { bold: true }
+                    })
+                    new Array("C", "D", "E", "F", "G", "H", "I", "J", "K").map(k => {
+                        row.getCell(k).border = {
+                        top: {style:'hair'},
+                        left: {style:'hair'},
+                        bottom: {style:'hair'},
+                        right: {style:'hair'}
+                        }
+                    })
+
+                    row = sheet.addRow(
+                        ["", "", Math.round(total_delta_recurring + total_new_recurring_weighted - total_lost_weighted_recurring - total_win_weighted_recurring), total_lost_weighted_recurring, total_win_weighted_recurring, total_new_recurring_weighted, Math.round(total_delta_recurring), total_win_recurring, total_lost_recurring, total_recurring, total_recurring_weighted]
+                    )
+                    new Array("C", "D", "E", "F", "G", "H", "I", "J", "K").map(k => {
+                        row.getCell(k).border = {
+                        top: {style:'hair'},
+                        left: {style:'hair'},
+                        bottom: {style:'hair'},
+                        right: {style:'hair'}
+                        }
+                        row.getCell(k).numFmt = '# ##0'
+                    })
+
+                    sheet.addRow([])
+
+                    row = sheet.addRow(
+                        ["", "Non récurrent", "Δ pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré"]
+                    )
+                    row.getCell('B').font = { italic: true, size: 9 }
+                    row.getCell('F').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: "FFFFFF00" } }
+                    new Array("C", "D", "E", "F").map(k => {
+                        row.getCell(k).font = { bold: true }
+                    })
+                    new Array("C", "D", "E", "F", "G", "H", "I", "J", "K").map(k => {
+                        row.getCell(k).border = {
+                        top: {style:'hair'},
+                        left: {style:'hair'},
+                        bottom: {style:'hair'},
+                        right: {style:'hair'}
+                        }
+                    })
+
+                    /** NON RECURRING ROW */
+                    row = sheet.addRow(
+                        ["", "", Math.round(total_delta_non_recurring + total_new_non_recurring_weighted - total_lost_weighted_non_recurring - total_win_weighted_non_recurring), total_lost_weighted_non_recurring, total_win_weighted_non_recurring, total_new_non_recurring_weighted, Math.round(total_delta_non_recurring), total_win_non_recurring, total_lost_non_recurring, total_non_recurring, total_non_recurring_weighted]
+                    )
+                    new Array("C", "D", "E", "F", "G", "H", "I", "J", "K").map(k => {
+                        row.getCell(k).border = {
+                        top: {style:'hair'},
+                        left: {style:'hair'},
+                        bottom: {style:'hair'},
+                        right: {style:'hair'}
+                        }
+                        row.getCell(k).numFmt = '# ##0'
+                    })
+
+                    sheet.addRow([])
+                    row = sheet.addRow(["", "Total", "Δ pipe pondéré", "Pipe pondéré"])
+                    row.getCell("B").font = { bold: true }
+                    row.getCell("C").font = { bold: true }
+                    row.getCell("D").font = { bold: true }
+                    row.getCell("C").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: total_delta >= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
+                    new Array("C", "D").map(k => {
+                        row.getCell(k).border = {
+                        top: {style:'medium'},
+                        left: {style:'medium'},
+                        bottom: {style:'medium'},
+                        right: {style:'medium'}
+                        }
+                    })
+                    row = sheet.addRow(["", "", total_delta, total_recurring_weighted + total_non_recurring_weighted])
+                    row.getCell("C").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: total_delta >= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
+                    new Array("C", "D").map(k => {
+                        row.getCell(k).border = {
+                        top: {style:'medium'},
+                        left: {style:'medium'},
+                        bottom: {style:'medium'},
+                        right: {style:'medium'}
+                        }   
+                        row.getCell(k).numFmt = '# ##0'
+                    })
+
+                    sheet.addRows([[], []])
+                }
+
+                const buffer = await workbook.xlsx.writeBuffer();
+
+                const blob = new Blob([buffer], { type: 'application/vnd.ms-excel' })
+                const url = URL.createObjectURL(blob)
+                var link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}.xlsx`);
+                link.click();
+                dialog.close()
+            } catch(e) { console.error(e )}
         },
         async exportCSVFull(dialog) {
             const s1 = this.screenshots.find(e => e.id === this.screenshot1)
