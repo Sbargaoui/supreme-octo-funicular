@@ -235,13 +235,21 @@ export default {
             const all_opportunities = []
             let next_url = "https://stafiz.net/api/opportunities"
             do {
-                const result = await axios.get(next_url, {
-                    headers: {
-                        Authorization: "Bearer " + this.token
+                try {
+                    const result = await axios.get(next_url, {
+                        headers: {
+                            Authorization: "Bearer " + this.token
+                        }
+                    })
+                    all_opportunities.push(...result.data.data)
+                    next_url = result.data.next_page_url
+                } catch(err) {
+                    if (err.response.status == 403) {
+                        this.logout()
+                        this.$dialog.alert('Votre session Stafiz a expiré, vous devez vous reconnecter.');
                     }
-                })
-                all_opportunities.push(...result.data.data)
-                next_url = result.data.next_page_url
+                    throw 'Logged out'
+                }
             } while(next_url)
             return all_opportunities
         },
@@ -298,128 +306,132 @@ export default {
                 [ "Practice" ]
             ]
 
-            const result_all = await this.retrieveAllOpportunities()
-            console.log(result_all)
-            
-            for (let team of TEAMS) {
-                let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
-                let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
+            try {
+                const result_all = await this.retrieveAllOpportunities()
+                console.log(result_all)
                 
-                let total_win = 0, total_lost = 0;
-                let total_win_weighted = 0, total_lost_weighted = 0;
-                let total_new_weighted = 0
-                let total_delta = 0
+                for (let team of TEAMS) {
+                    let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                    let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                    
+                    let total_win = 0, total_lost = 0;
+                    let total_win_weighted = 0, total_lost_weighted = 0;
+                    let total_new_weighted = 0
+                    let total_delta = 0
 
-                let total_recurring_weighted = 0, total_non_recurring_weighted = 0
-                let total_recurring = 0, total_non_recurring = 0
-                let total_delta_recurring = 0, total_delta_non_recurring = 0
-                let total_win_recurring = 0, total_win_non_recurring = 0
-                let total_win_weighted_recurring = 0, total_win_weighted_non_recurring = 0
-                let total_lost_recurring = 0, total_lost_non_recurring = 0
-                let total_lost_weighted_recurring = 0, total_lost_weighted_non_recurring = 0
-                let total_new_recurring_weighted = 0, total_new_non_recurring_weighted = 0
+                    let total_recurring_weighted = 0, total_non_recurring_weighted = 0
+                    let total_recurring = 0, total_non_recurring = 0
+                    let total_delta_recurring = 0, total_delta_non_recurring = 0
+                    let total_win_recurring = 0, total_win_non_recurring = 0
+                    let total_win_weighted_recurring = 0, total_win_weighted_non_recurring = 0
+                    let total_lost_recurring = 0, total_lost_non_recurring = 0
+                    let total_lost_weighted_recurring = 0, total_lost_weighted_non_recurring = 0
+                    let total_new_recurring_weighted = 0, total_new_non_recurring_weighted = 0
 
-                console.log(s1_values)
+                    console.log(s1_values)
 
-                const IDs = []
+                    const IDs = []
 
-                for (let new_s of s2_values) {
-                    IDs.push(new_s.id)
-                    if (new_s.teams.includes(TEAM_RECURRING)) {
-                        total_recurring += new_s.amount
-                        total_recurring_weighted += new_s.amount * new_s.probability/100
-                    }
-                    else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
-                        total_non_recurring += new_s.amount
-                        total_non_recurring_weighted += new_s.amount * new_s.probability/100
-                    }
-
-                    const prev = s1_values.find(e => e.id == new_s.id)
-
-                    if (prev) {
-                        const old_weighted_value = prev.amount * prev.probability/100
-                        const new_weighted_value = new_s.amount * new_s.probability/100
-                        total_delta += new_weighted_value - old_weighted_value
-
+                    for (let new_s of s2_values) {
+                        IDs.push(new_s.id)
                         if (new_s.teams.includes(TEAM_RECURRING)) {
-                            total_delta_recurring += new_weighted_value - old_weighted_value
+                            total_recurring += new_s.amount
+                            total_recurring_weighted += new_s.amount * new_s.probability/100
                         }
                         else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
-                            total_delta_non_recurring += new_weighted_value - old_weighted_value
+                            total_non_recurring += new_s.amount
+                            total_non_recurring_weighted += new_s.amount * new_s.probability/100
                         }
-                    } else {
-                        total_new_weighted += new_s.amount * new_s.probability/100
-                        if (new_s.teams.includes(TEAM_RECURRING)) {
-                            total_new_recurring_weighted += new_s.amount * new_s.probability/100
-                        }
-                        else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
-                            total_new_non_recurring_weighted += new_s.amount * new_s.probability/100
-                        }
-                    }
-                }
 
-                const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
-                for (let removed of removed_values) {
-                    const data = result_all.find(e => e.id === removed.id)
-                    if (data) {
-                        const won = data.status === "won";
-                        if (won) {
-                            total_win += removed.amount
-                            total_win_weighted += removed.amount * removed.probability/100
+                        const prev = s1_values.find(e => e.id == new_s.id)
 
-                            if (data.teams.includes(TEAM_RECURRING)) {
-                                total_win_recurring += removed.amount
-                                total_win_weighted_recurring += removed.amount * removed.probability/100
+                        if (prev) {
+                            const old_weighted_value = prev.amount * prev.probability/100
+                            const new_weighted_value = new_s.amount * new_s.probability/100
+                            total_delta += new_weighted_value - old_weighted_value
+
+                            if (new_s.teams.includes(TEAM_RECURRING)) {
+                                total_delta_recurring += new_weighted_value - old_weighted_value
                             }
-                            else if (data.teams.includes(TEAM_NON_RECURRING)) {
-                                total_win_non_recurring += removed.amount
-                                total_win_weighted_non_recurring += removed.amount * removed.probability/100
+                            else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                                total_delta_non_recurring += new_weighted_value - old_weighted_value
                             }
                         } else {
-                            total_lost += removed.amount
-                            total_lost_weighted += removed.amount * removed.probability/100
-
-                            if (data.teams.includes(TEAM_RECURRING)) {
-                                total_lost_recurring += removed.amount
-                                total_lost_weighted_recurring += removed.amount * removed.probability/100
+                            total_new_weighted += new_s.amount * new_s.probability/100
+                            if (new_s.teams.includes(TEAM_RECURRING)) {
+                                total_new_recurring_weighted += new_s.amount * new_s.probability/100
                             }
-                            else if (data.teams.includes(TEAM_NON_RECURRING)) {
-                                total_lost_non_recurring += removed.amount
-                                total_lost_weighted_non_recurring += removed.amount * removed.probability/100
+                            else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                                total_new_non_recurring_weighted += new_s.amount * new_s.probability/100
                             }
                         }
                     }
+
+                    const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
+                    for (let removed of removed_values) {
+                        const data = result_all.find(e => e.id === removed.id)
+                        if (data) {
+                            const won = data.status === "won";
+                            if (won) {
+                                total_win += removed.amount
+                                total_win_weighted += removed.amount * removed.probability/100
+
+                                if (data.teams.includes(TEAM_RECURRING)) {
+                                    total_win_recurring += removed.amount
+                                    total_win_weighted_recurring += removed.amount * removed.probability/100
+                                }
+                                else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_win_non_recurring += removed.amount
+                                    total_win_weighted_non_recurring += removed.amount * removed.probability/100
+                                }
+                            } else {
+                                total_lost += removed.amount
+                                total_lost_weighted += removed.amount * removed.probability/100
+
+                                if (data.teams.includes(TEAM_RECURRING)) {
+                                    total_lost_recurring += removed.amount
+                                    total_lost_weighted_recurring += removed.amount * removed.probability/100
+                                }
+                                else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_lost_non_recurring += removed.amount
+                                    total_lost_weighted_non_recurring += removed.amount * removed.probability/100
+                                }
+                            }
+                        }
+                    }
+
+                    rows.push(
+                        [team.name, "Récurrent", "Delta pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
+                    )
+
+                    rows.push([
+                        "", "", Math.round(total_delta_recurring + total_new_recurring_weighted - total_lost_weighted_recurring - total_win_weighted_recurring), total_lost_weighted_recurring, total_win_weighted_recurring, total_new_recurring_weighted, Math.round(total_delta_recurring), total_win_recurring, total_lost_recurring, total_recurring, total_recurring_weighted 
+                    ])
+
+                    rows.push([])
+
+                    rows.push(
+                        ["", "Non récurrent", "Delta pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
+                    )
+
+                    rows.push([
+                        "", "", Math.round(total_delta_non_recurring + total_new_non_recurring_weighted - total_lost_weighted_non_recurring - total_win_weighted_non_recurring), total_lost_weighted_non_recurring, total_win_weighted_non_recurring, total_new_non_recurring_weighted, Math.round(total_delta_non_recurring), total_win_non_recurring, total_lost_non_recurring, total_non_recurring, total_non_recurring_weighted
+                    ])
+
+                    rows.push([], [])
                 }
 
-                rows.push(
-                    [team.name, "Récurrent", "Delta pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
-                )
-
-                rows.push([
-                    "", "", Math.round(total_delta_recurring + total_new_recurring_weighted - total_lost_weighted_recurring - total_win_weighted_recurring), total_lost_weighted_recurring, total_win_weighted_recurring, total_new_recurring_weighted, Math.round(total_delta_recurring), total_win_recurring, total_lost_recurring, total_recurring, total_recurring_weighted 
-                ])
-
-                rows.push([])
-
-                rows.push(
-                    ["", "Non récurrent", "Delta pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré" ]
-                )
-
-                rows.push([
-                    "", "", Math.round(total_delta_non_recurring + total_new_non_recurring_weighted - total_lost_weighted_non_recurring - total_win_weighted_non_recurring), total_lost_weighted_non_recurring, total_win_weighted_non_recurring, total_new_non_recurring_weighted, Math.round(total_delta_non_recurring), total_win_non_recurring, total_lost_non_recurring, total_non_recurring, total_non_recurring_weighted
-                ])
-
-                rows.push([], [])
+                let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+                var encodedUri = encodeURI(csvContent);
+                var link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                console.log(this.screenshot1)
+                link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}.csv`);
+                link.click();
             }
-
-            let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-            var encodedUri = encodeURI(csvContent);
-            var link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            console.log(this.screenshot1)
-            link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}.csv`);
-            link.click();
-            dialog.close()
+            finally {
+                dialog.close()
+            }
         },
         async exportXLS(dialog) {
             console.log("test")
@@ -630,6 +642,25 @@ export default {
                     sheet.addRows([[], []])
                 }
 
+                // row = sheet.addRow(["", "Grand Total", 
+                //     Math.round(total_delta + total_new_weighted - total_lost_weighted - total_win_weighted),
+                //     total_lost_weighted, total_win_weighted,
+                //     total_new_weighted,
+                //     total_delta,
+                //     total_win, total_lost,
+                //     total_recurring + total_non_recurring,
+                //     total_recurring_weighted + total_non_recurring_weighted
+                // ])
+                // row = sheet.addRow(["", "Récurrent", 
+                //     Math.round(total_delta + total_new_weighted - total_lost_weighted - total_win_weighted),
+                //     total_lost_weighted, total_win_weighted,
+                //     total_new_weighted,
+                //     total_delta,
+                //     total_win, total_lost,
+                //     total_recurring + total_non_recurring,
+                //     total_recurring_weighted + total_non_recurring_weighted
+                // ])
+
                 const buffer = await workbook.xlsx.writeBuffer();
 
                 const blob = new Blob([buffer], { type: 'application/vnd.ms-excel' })
@@ -638,61 +669,67 @@ export default {
                 link.setAttribute("href", url);
                 link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}.xlsx`);
                 link.click();
-                dialog.close()
             } catch(e) { console.error(e )}
+            finally {
+                dialog.close()
+            }
         },
         async exportCSVFull(dialog) {
-            const s1 = this.screenshots.find(e => e.id === this.screenshot1)
-            const s2 = this.screenshots.find(e => e.id === this.screenshot2)
+            try {
+                const s1 = this.screenshots.find(e => e.id === this.screenshot1)
+                const s2 = this.screenshots.find(e => e.id === this.screenshot2)
 
-            const rows = [
-                [ "Practice", "Job name", "Type", "Date 1", "Status 1", "Amount 1", "Probability 1", "Created at 1", "Sale date 1", "Date 2", "Status 2", "Amount 2", "Probability 2", "Created at 2", "Sale date 2" ]
-            ]
+                const rows = [
+                    [ "Practice", "Job name", "Type", "Date 1", "Status 1", "Amount 1", "Probability 1", "Created at 1", "Sale date 1", "Date 2", "Status 2", "Amount 2", "Probability 2", "Created at 2", "Sale date 2" ]
+                ]
 
-            const result_all = await this.retrieveAllOpportunities()
+                const result_all = await this.retrieveAllOpportunities()
 
-            for (let team of TEAMS) {
-                let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
-                let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                for (let team of TEAMS) {
+                    let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
+                    let s2_values = s2.values.filter(e => e.teams.indexOf(team.id) !== -1)
 
-                const IDs = []
+                    const IDs = []
 
-                for (let new_s of s2_values) {
-                    IDs.push(new_s.id)
-                    
-                    const row = [ team.name, new_s.job_name, new_s.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring" ]
+                    for (let new_s of s2_values) {
+                        IDs.push(new_s.id)
+                        
+                        const row = [ team.name, new_s.job_name, new_s.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring" ]
 
-                    const prev = s1_values.find(e => e.id == new_s.id)
+                        const prev = s1_values.find(e => e.id == new_s.id)
 
-                    if (prev) {
-                        row.push(s1.date, prev.status, prev.amount, prev.probability, prev.created_at, prev.sale)
-                    } else {
-                        row.push(s1.date, "", "", "", "", "")
+                        if (prev) {
+                            row.push(s1.date, prev.status, prev.amount, prev.probability, prev.created_at, prev.sale)
+                        } else {
+                            row.push(s1.date, "", "", "", "", "")
+                        }
+
+                        row.push(s2.date, new_s.status, new_s.amount, new_s.probability, new_s.created_at, new_s.sale)
+
+                        rows.push(row)
                     }
 
-                    row.push(s2.date, new_s.status, new_s.amount, new_s.probability, new_s.created_at, new_s.sale)
+                    const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
+                    for (let removed of removed_values) {
+                        const data = result_all.find(e => e.id === removed.id)
+                        const won = data.status === "won";
 
-                    rows.push(row)
+                        const row = [ team.name, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, won ? "Won" : "Lost", removed.amount, removed.probability, removed.created_at, removed.sale ]
+
+                        rows.push(row)
+                    }
                 }
 
-                const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
-                for (let removed of removed_values) {
-                    const data = result_all.find(e => e.id === removed.id)
-                    const won = data.status === "won";
-
-                    const row = [ team.name, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, won ? "Won" : "Lost", removed.amount, removed.probability, removed.created_at, removed.sale ]
-
-                    rows.push(row)
-                }
+                let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+                var encodedUri = encodeURI(csvContent);
+                var link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}-full.csv`);
+                link.click();
             }
-
-            let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-            var encodedUri = encodeURI(csvContent);
-            var link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}-full.csv`);
-            link.click();
-            dialog.close()
+            finally {
+                dialog.close()
+            }
         },
         onFilePicked(event) {
             const files = event.target.files
