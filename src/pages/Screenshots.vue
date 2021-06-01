@@ -244,7 +244,7 @@ export default {
                     all_opportunities.push(...result.data.data)
                     next_url = result.data.next_page_url
                 } catch(err) {
-                    if (err.response.status == 403) {
+                    if (err.response.status == 403 || err.response.status == 401) {
                         this.logout()
                         this.$dialog.alert('Votre session Stafiz a expiré, vous devez vous reconnecter.');
                     }
@@ -254,29 +254,33 @@ export default {
             return all_opportunities
         },
         async generate(dialog) {
-            const all_opportunities = await this.retrieveAllOpportunities()
-            
-            console.log(all_opportunities)
-            const open_opportunities = all_opportunities.filter(e => {
-                return e.status === "open" && (JSON.parse(e.teams).filter(t => TEAMS.find(T => t === T.id) != -1)).length > 0
-            }).map(e => ({
-                ...e,
-                amount: parseFloat(e.amount),
-                probability: parseFloat(e.chances),
-                teams: JSON.parse(e.teams),
-                column_id: e.status2
-            }))
-            console.log(open_opportunities)
-            await browser.runtime.sendMessage({
-                action: "db-insert",
-                value: {
-                    company: "All",
-                    date: new Date(),
-                    values: open_opportunities
-                }
-            })
-            this.loadScreenshots()
-            dialog.close()
+            try {
+                const all_opportunities = await this.retrieveAllOpportunities()
+                
+                console.log(all_opportunities)
+                const open_opportunities = all_opportunities.filter(e => {
+                    return e.status === "open" && (JSON.parse(e.teams).filter(t => TEAMS.find(T => t === T.id) != -1)).length > 0
+                }).map(e => ({
+                    ...e,
+                    amount: parseFloat(e.amount),
+                    probability: parseFloat(e.chances),
+                    teams: JSON.parse(e.teams),
+                    column_id: e.status2
+                }))
+                console.log(open_opportunities)
+                await browser.runtime.sendMessage({
+                    action: "db-insert",
+                    value: {
+                        company: "All",
+                        date: new Date(),
+                        values: open_opportunities
+                    }
+                })
+                this.loadScreenshots()
+            }
+            finally {
+                dialog.close()
+            }
         },
         download(id) {
             const s = this.screenshots.find(e => e.id === id)
@@ -458,6 +462,18 @@ export default {
 
                 const result_all = await this.retrieveAllOpportunities()
                 console.log(result_all)
+
+                let global_recurring_weighted = 0, global_non_recurring_weighted = 0
+                let global_recurring = 0, global_non_recurring = 0
+                let global_delta_recurring = 0, global_delta_non_recurring = 0
+                let global_win_recurring = 0, global_win_non_recurring = 0
+                let global_win_weighted_recurring = 0, global_win_weighted_non_recurring = 0
+                let global_lost_recurring = 0, global_lost_non_recurring = 0
+                let global_lost_weighted_recurring = 0, global_lost_weighted_non_recurring = 0
+                let global_new_recurring_weighted = 0, global_new_non_recurring_weighted = 0
+
+                let proba_win = 0, proba_lost = 0
+                let number_win = 0, number_lost = 0
                 
                 for (let team of TEAMS) {
                     let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
@@ -524,7 +540,9 @@ export default {
                             if (won) {
                                 total_win += removed.amount
                                 total_win_weighted += removed.amount * removed.probability/100
-
+                                proba_win = removed.probability
+                                number_win++
+                                
                                 if (data.teams.includes(TEAM_RECURRING)) {
                                     total_win_recurring += removed.amount
                                     total_win_weighted_recurring += removed.amount * removed.probability/100
@@ -536,6 +554,8 @@ export default {
                             } else {
                                 total_lost += removed.amount
                                 total_lost_weighted += removed.amount * removed.probability/100
+                                proba_lost = removed.probability
+                                number_lost++
 
                                 if (data.teams.includes(TEAM_RECURRING)) {
                                     total_lost_recurring += removed.amount
@@ -548,6 +568,15 @@ export default {
                             }
                         }
                     }
+
+                    global_recurring_weighted += total_recurring_weighted, global_non_recurring_weighted += total_non_recurring_weighted
+                    global_recurring += total_recurring, global_non_recurring += total_non_recurring
+                    global_delta_recurring += total_delta_recurring, global_delta_non_recurring += total_delta_non_recurring
+                    global_win_recurring += total_win_recurring, global_win_non_recurring += total_win_non_recurring
+                    global_win_weighted_recurring += total_win_weighted_recurring, global_win_weighted_non_recurring += total_win_weighted_non_recurring
+                    global_lost_recurring += total_lost_recurring, global_lost_non_recurring += total_lost_non_recurring
+                    global_lost_weighted_recurring += total_lost_weighted_recurring, global_lost_weighted_non_recurring += total_lost_weighted_non_recurring
+                    global_new_recurring_weighted += total_new_recurring_weighted, global_new_non_recurring_weighted += total_new_non_recurring_weighted
 
                     /** RECURRING ROW */
                     row = sheet.addRow([team.name, "Récurrent", "Δ pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré"])
@@ -642,24 +671,52 @@ export default {
                     sheet.addRows([[], []])
                 }
 
-                // row = sheet.addRow(["", "Grand Total", 
-                //     Math.round(total_delta + total_new_weighted - total_lost_weighted - total_win_weighted),
-                //     total_lost_weighted, total_win_weighted,
-                //     total_new_weighted,
-                //     total_delta,
-                //     total_win, total_lost,
-                //     total_recurring + total_non_recurring,
-                //     total_recurring_weighted + total_non_recurring_weighted
-                // ])
-                // row = sheet.addRow(["", "Récurrent", 
-                //     Math.round(total_delta + total_new_weighted - total_lost_weighted - total_win_weighted),
-                //     total_lost_weighted, total_win_weighted,
-                //     total_new_weighted,
-                //     total_delta,
-                //     total_win, total_lost,
-                //     total_recurring + total_non_recurring,
-                //     total_recurring_weighted + total_non_recurring_weighted
-                // ])
+                row = sheet.addRow(["", "Grand Total", 
+                    Math.round(global_delta_recurring+global_delta_non_recurring + global_new_recurring_weighted+global_new_non_recurring_weighted - global_lost_weighted_recurring-global_lost_weighted_non_recurring - global_win_weighted_recurring-global_win_weighted_non_recurring),
+                    global_lost_weighted_recurring+global_lost_weighted_non_recurring, global_win_weighted_recurring+global_win_weighted_non_recurring,
+                    global_new_recurring_weighted+global_new_non_recurring_weighted,
+                    global_delta_recurring+global_delta_non_recurring,
+                    global_win_recurring+global_win_non_recurring, global_lost_recurring+global_lost_non_recurring,
+                    global_recurring + global_non_recurring,
+                    global_recurring_weighted + global_non_recurring_weighted
+                ])
+                row = sheet.addRow(["", "Récurrent", 
+                    Math.round(global_delta_recurring + global_new_recurring_weighted - global_lost_weighted_recurring - global_win_weighted_recurring),
+                    global_lost_weighted_recurring, global_win_weighted_recurring,
+                    global_new_recurring_weighted,
+                    global_delta_recurring,
+                    global_win_recurring, global_lost_recurring,
+                    global_recurring,
+                    global_recurring_weighted
+                ])
+                row = sheet.addRow(["", "Non récurrent", 
+                    Math.round(global_delta_non_recurring + global_new_non_recurring_weighted - global_lost_weighted_non_recurring - global_win_weighted_non_recurring),
+                    global_lost_weighted_non_recurring, global_win_weighted_non_recurring,
+                    global_new_non_recurring_weighted,
+                    global_delta_non_recurring,
+                    global_win_non_recurring, global_lost_non_recurring,
+                    global_non_recurring,
+                    global_non_recurring_weighted
+                ])
+                new Array("C", "E", "F", "G", "H").map(k => { 
+                    row.getCell(k).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: row.getCell(k).value >= 0 ? "FFD9EAD3" : "FFF4CCCD" }}
+                    row.getCell(k).numFmt = '# ##0'
+                })
+                new Array("D", "I").map(k => {
+                    row.getCell(k).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: row.getCell(k).value <= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
+                    row.getCell(k).numFmt = '# ##0'
+                })
+
+                sheet.addRow([])
+
+                row = sheet.addRow(["", "% moyen proba de WIN", proba_win / number_win])
+                row = sheet.addRow(["", "% moyen proba de LOST", proba_lost / number_lost])
+
+                sheet.addRow([])
+
+                const percentage_lost = (global_lost_weighted_recurring+global_lost_weighted_non_recurring) / (global_recurring_weighted+global_non_recurring_weighted) * 100
+                row = sheet.addRow(["", "% Pondéré LOST", percentage_lost])
+                row = sheet.addRow(["", "% Pondéré WIN", 100 - percentage_lost])
 
                 const buffer = await workbook.xlsx.writeBuffer();
 
