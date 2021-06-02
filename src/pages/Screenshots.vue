@@ -276,7 +276,8 @@ export default {
                         values: open_opportunities
                     }
                 })
-                this.loadScreenshots()
+                await this.loadScreenshots()
+                this.download(this.screenshots[0].id)
             }
             finally {
                 dialog.close()
@@ -540,7 +541,7 @@ export default {
                             if (won) {
                                 total_win += removed.amount
                                 total_win_weighted += removed.amount * removed.probability/100
-                                proba_win = removed.probability
+                                proba_win += removed.probability
                                 number_win++
                                 
                                 if (data.teams.includes(TEAM_RECURRING)) {
@@ -554,7 +555,7 @@ export default {
                             } else {
                                 total_lost += removed.amount
                                 total_lost_weighted += removed.amount * removed.probability/100
-                                proba_lost = removed.probability
+                                proba_lost += removed.probability
                                 number_lost++
 
                                 if (data.teams.includes(TEAM_RECURRING)) {
@@ -680,6 +681,9 @@ export default {
                     global_recurring + global_non_recurring,
                     global_recurring_weighted + global_non_recurring_weighted
                 ])
+                new Array("C", "D", "E", "F", "G", "H", "I", "J", "K").map(k => {
+                    row.getCell(k).numFmt = '# ##0'
+                })
                 row = sheet.addRow(["", "Récurrent", 
                     Math.round(global_delta_recurring + global_new_recurring_weighted - global_lost_weighted_recurring - global_win_weighted_recurring),
                     global_lost_weighted_recurring, global_win_weighted_recurring,
@@ -689,6 +693,9 @@ export default {
                     global_recurring,
                     global_recurring_weighted
                 ])
+                new Array("C", "D", "E", "F", "G", "H", "I", "J", "K").map(k => {
+                    row.getCell(k).numFmt = '# ##0'
+                })
                 row = sheet.addRow(["", "Non récurrent", 
                     Math.round(global_delta_non_recurring + global_new_non_recurring_weighted - global_lost_weighted_non_recurring - global_win_weighted_non_recurring),
                     global_lost_weighted_non_recurring, global_win_weighted_non_recurring,
@@ -706,17 +713,32 @@ export default {
                     row.getCell(k).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: row.getCell(k).value <= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
                     row.getCell(k).numFmt = '# ##0'
                 })
+                new Array("J", "K").map(k => {
+                    row.getCell(k).numFmt = '# ##0'
+                })
 
                 sheet.addRow([])
 
-                row = sheet.addRow(["", "% moyen proba de WIN", proba_win / number_win])
-                row = sheet.addRow(["", "% moyen proba de LOST", proba_lost / number_lost])
+                row = sheet.addRow(["% moyen proba de WIN", "", (proba_win) / number_win / 100])
+                sheet.mergeCells(`A${row.number}:B${row.number}`)
+                row.getCell("C").numFmt = '0.00%'
+                row.getCell("A").alignment = { horizontal: "right" }
+                row = sheet.addRow(["% moyen proba de LOST", "", (proba_lost) / number_lost / 100])
+                sheet.mergeCells(`A${row.number}:B${row.number}`)
+                row.getCell("C").numFmt = '0.00%'
+                row.getCell("A").alignment = { horizontal: "right" }
 
                 sheet.addRow([])
 
-                const percentage_lost = (global_lost_weighted_recurring+global_lost_weighted_non_recurring) / (global_recurring_weighted+global_non_recurring_weighted) * 100
-                row = sheet.addRow(["", "% Pondéré LOST", percentage_lost])
-                row = sheet.addRow(["", "% Pondéré WIN", 100 - percentage_lost])
+                const percentage_lost = Math.round((global_lost_weighted_recurring+global_lost_weighted_non_recurring) / (global_lost_weighted_recurring+global_lost_weighted_non_recurring+global_win_weighted_non_recurring+global_win_weighted_recurring) * 10000) / 10000
+                row = sheet.addRow(["% Pondéré LOST", "", percentage_lost])
+                sheet.mergeCells(`A${row.number}:B${row.number}`)
+                row.getCell("C").numFmt = '0.00%'
+                row.getCell("A").alignment = { horizontal: "right" }
+                row = sheet.addRow(["% Pondéré WIN", "", 1 - percentage_lost])
+                sheet.mergeCells(`A${row.number}:B${row.number}`)
+                row.getCell("A").alignment = { horizontal: "right" }
+                row.getCell("C").numFmt = '0.00%'
 
                 const buffer = await workbook.xlsx.writeBuffer();
 
