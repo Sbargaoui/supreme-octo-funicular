@@ -657,7 +657,8 @@ export default {
                         right: {style:'medium'}
                         }
                     })
-                    row = sheet.addRow(["", "", total_delta, total_recurring_weighted + total_non_recurring_weighted])
+                    row = sheet.addRow(["", "", Math.round(total_delta_recurring + total_new_recurring_weighted - total_lost_weighted_recurring - total_win_weighted_recurring + total_delta_non_recurring + total_new_non_recurring_weighted - total_lost_weighted_non_recurring - total_win_weighted_non_recurring),
+                    total_recurring_weighted + total_non_recurring_weighted])
                     row.getCell("C").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: total_delta >= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
                     new Array("C", "D").map(k => {
                         row.getCell(k).border = {
@@ -791,11 +792,18 @@ export default {
                     const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
                     for (let removed of removed_values) {
                         const data = result_all.find(e => e.id === removed.id)
-                        const won = data.status === "won";
 
-                        const row = [ team.name, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, won ? "Won" : "Lost", removed.amount, removed.probability, removed.created_at, removed.sale ]
+                        if (data) {
+                            const won = data.status === "won";
 
-                        rows.push(row)
+                            const row = [ team.name, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, won ? "Won" : "Lost", removed.amount, removed.probability, removed.created_at, removed.sale ]
+
+                            rows.push(row)
+                        } else {
+                            const row = [ team.name, removed.job_name, removed.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, "Removed", removed.amount, removed.probability, removed.created_at, removed.sale ]
+
+                            rows.push(row)
+                        }
                     }
                 }
 
@@ -806,6 +814,7 @@ export default {
                 link.setAttribute("download", `${moment(s1.date).format("YYYYMMDDHHMM")}--${moment(s2.date).format("YYYYMMDDHHMM")}-full.csv`);
                 link.click();
             }
+            catch(err) { console.error(err) }
             finally {
                 dialog.close()
             }
