@@ -378,28 +378,28 @@ export default {
                         if (data) {
                             const won = data.status === "won";
                             if (won) {
-                                total_win += removed.amount
-                                total_win_weighted += removed.amount * removed.probability/100
+                                total_win += parseFloat(data.amount)
+                                total_win_weighted += parseFloat(data.amount) * removed.probability/100
 
                                 if (data.teams.includes(TEAM_RECURRING)) {
-                                    total_win_recurring += removed.amount
-                                    total_win_weighted_recurring += removed.amount * removed.probability/100
+                                    total_win_recurring += parseFloat(data.amount)
+                                    total_win_weighted_recurring += parseFloat(data.amount) * removed.probability/100
                                 }
                                 else if (data.teams.includes(TEAM_NON_RECURRING)) {
-                                    total_win_non_recurring += removed.amount
-                                    total_win_weighted_non_recurring += removed.amount * removed.probability/100
+                                    total_win_non_recurring += parseFloat(data.amount)
+                                    total_win_weighted_non_recurring += parseFloat(data.amount) * removed.probability/100
                                 }
                             } else {
-                                total_lost += removed.amount
-                                total_lost_weighted += removed.amount * removed.probability/100
+                                total_lost += parseFloat(data.amount)
+                                total_lost_weighted += parseFloat(data.amount) * removed.probability/100
 
                                 if (data.teams.includes(TEAM_RECURRING)) {
-                                    total_lost_recurring += removed.amount
-                                    total_lost_weighted_recurring += removed.amount * removed.probability/100
+                                    total_lost_recurring += parseFloat(data.amount)
+                                    total_lost_weighted_recurring += parseFloat(data.amount) * removed.probability/100
                                 }
                                 else if (data.teams.includes(TEAM_NON_RECURRING)) {
-                                    total_lost_non_recurring += removed.amount
-                                    total_lost_weighted_non_recurring += removed.amount * removed.probability/100
+                                    total_lost_non_recurring += parseFloat(data.amount)
+                                    total_lost_weighted_non_recurring += parseFloat(data.amount) * removed.probability/100
                                 }
                             }
                         }
@@ -473,8 +473,7 @@ export default {
                 let global_lost_weighted_recurring = 0, global_lost_weighted_non_recurring = 0
                 let global_new_recurring_weighted = 0, global_new_non_recurring_weighted = 0
 
-                let proba_win = 0, proba_lost = 0
-                let number_win = 0, number_lost = 0
+                const opportunities_computed = []
                 
                 for (let team of TEAMS) {
                     let s1_values = s1.values.filter(e => e.teams.indexOf(team.id) !== -1)
@@ -503,10 +502,20 @@ export default {
                         if (new_s.teams.includes(TEAM_RECURRING)) {
                             total_recurring += new_s.amount
                             total_recurring_weighted += new_s.amount * new_s.probability/100
+
+                            if(!opportunities_computed.includes(new_s.id)) {
+                                global_recurring += new_s.amount
+                                global_recurring_weighted += new_s.amount * new_s.probability/100
+                            }
                         }
                         else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
                             total_non_recurring += new_s.amount
                             total_non_recurring_weighted += new_s.amount * new_s.probability/100
+
+                            if(!opportunities_computed.includes(new_s.id)) {
+                                global_non_recurring += new_s.amount
+                                global_non_recurring_weighted += new_s.amount * new_s.probability/100
+                            }
                         }
 
                         const prev = s1_values.find(e => e.id == new_s.id)
@@ -518,19 +527,33 @@ export default {
 
                             if (new_s.teams.includes(TEAM_RECURRING)) {
                                 total_delta_recurring += new_weighted_value - old_weighted_value
+                                if(!opportunities_computed.includes(new_s.id)) {
+                                    global_delta_recurring += new_weighted_value - old_weighted_value
+                                }
                             }
                             else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
                                 total_delta_non_recurring += new_weighted_value - old_weighted_value
+                                if(!opportunities_computed.includes(new_s.id)) {
+                                    global_delta_non_recurring += new_weighted_value - old_weighted_value
+                                }
                             }
                         } else {
                             total_new_weighted += new_s.amount * new_s.probability/100
                             if (new_s.teams.includes(TEAM_RECURRING)) {
                                 total_new_recurring_weighted += new_s.amount * new_s.probability/100
+                                if(!opportunities_computed.includes(new_s.id)) {
+                                    global_new_recurring_weighted = new_s.amount * new_s.probability/100
+                                }
                             }
                             else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
                                 total_new_non_recurring_weighted += new_s.amount * new_s.probability/100
+                                if(!opportunities_computed.includes(new_s.id)) {
+                                    global_new_non_recurring_weighted = new_s.amount * new_s.probability/100
+                                }
                             }
                         }
+
+                        opportunities_computed.push(new_s.id)
                     }
 
                     const removed_values = s1_values.filter(e => IDs.indexOf(e.id) === -1)
@@ -539,45 +562,54 @@ export default {
                         if (data) {
                             const won = data.status === "won";
                             if (won) {
-                                total_win += removed.amount
-                                total_win_weighted += removed.amount * removed.probability/100
-                                proba_win += removed.probability
-                                number_win++
+                                total_win += parseFloat(data.amount)
+                                total_win_weighted += parseFloat(data.amount) * removed.probability/100
                                 
                                 if (data.teams.includes(TEAM_RECURRING)) {
-                                    total_win_recurring += removed.amount
-                                    total_win_weighted_recurring += removed.amount * removed.probability/100
+                                    total_win_recurring += parseFloat(data.amount)
+                                    total_win_weighted_recurring += parseFloat(data.amount) * removed.probability/100
+
+                                    if(!opportunities_computed.includes(data.id)) {
+                                        global_win_recurring += parseFloat(data.amount)
+                                        global_win_weighted_recurring += parseFloat(data.amount) * removed.probability/100
+                                    }
                                 }
                                 else if (data.teams.includes(TEAM_NON_RECURRING)) {
-                                    total_win_non_recurring += removed.amount
-                                    total_win_weighted_non_recurring += removed.amount * removed.probability/100
+                                    total_win_non_recurring += parseFloat(data.amount)
+                                    total_win_weighted_non_recurring += parseFloat(data.amount) * removed.probability/100
+
+                                    if(!opportunities_computed.includes(data.id)) {
+                                        global_win_non_recurring += parseFloat(data.amount)
+                                        global_win_weighted_non_recurring += parseFloat(data.amount) * removed.probability/100
+                                    }
                                 }
                             } else {
-                                total_lost += removed.amount
-                                total_lost_weighted += removed.amount * removed.probability/100
-                                proba_lost += removed.probability
-                                number_lost++
+                                total_lost += parseFloat(data.amount)
+                                total_lost_weighted += parseFloat(data.amount) * removed.probability/100
 
                                 if (data.teams.includes(TEAM_RECURRING)) {
-                                    total_lost_recurring += removed.amount
-                                    total_lost_weighted_recurring += removed.amount * removed.probability/100
+                                    total_lost_recurring += parseFloat(data.amount)
+                                    total_lost_weighted_recurring += parseFloat(data.amount) * removed.probability/100
+
+                                    if(!opportunities_computed.includes(data.id)) {
+                                        global_lost_recurring += parseFloat(data.amount)
+                                        global_lost_weighted_recurring += parseFloat(data.amount) * removed.probability/100
+                                    }
                                 }
                                 else if (data.teams.includes(TEAM_NON_RECURRING)) {
-                                    total_lost_non_recurring += removed.amount
-                                    total_lost_weighted_non_recurring += removed.amount * removed.probability/100
+                                    total_lost_non_recurring += parseFloat(data.amount)
+                                    total_lost_weighted_non_recurring += parseFloat(data.amount) * removed.probability/100
+
+                                    if(!opportunities_computed.includes(data.id)) {
+                                        global_lost_non_recurring += parseFloat(data.amount)
+                                        global_lost_weighted_non_recurring += parseFloat(data.amount) * removed.probability/100
+                                    }
                                 }
                             }
+
+                            opportunities_computed.push(data.id)
                         }
                     }
-
-                    global_recurring_weighted += total_recurring_weighted, global_non_recurring_weighted += total_non_recurring_weighted
-                    global_recurring += total_recurring, global_non_recurring += total_non_recurring
-                    global_delta_recurring += total_delta_recurring, global_delta_non_recurring += total_delta_non_recurring
-                    global_win_recurring += total_win_recurring, global_win_non_recurring += total_win_non_recurring
-                    global_win_weighted_recurring += total_win_weighted_recurring, global_win_weighted_non_recurring += total_win_weighted_non_recurring
-                    global_lost_recurring += total_lost_recurring, global_lost_non_recurring += total_lost_non_recurring
-                    global_lost_weighted_recurring += total_lost_weighted_recurring, global_lost_weighted_non_recurring += total_lost_weighted_non_recurring
-                    global_new_recurring_weighted += total_new_recurring_weighted, global_new_non_recurring_weighted += total_new_non_recurring_weighted
 
                     /** RECURRING ROW */
                     row = sheet.addRow([team.name, "Récurrent", "Δ pipe pondéré", "LOST", "WIN", "NEW", "Evolution", "WIN non pondéré", "LOST non pondéré", "Total pipe non pondéré", "Total pipe pondéré"])
@@ -721,11 +753,11 @@ export default {
 
                 sheet.addRow([])
 
-                row = sheet.addRow(["% moyen proba de WIN", "", (proba_win) / number_win / 100])
+                row = sheet.addRow(["% moyen proba de WIN", "", (global_win_weighted_recurring+global_win_weighted_non_recurring) / (global_win_recurring+global_win_non_recurring)])
                 sheet.mergeCells(`A${row.number}:B${row.number}`)
                 row.getCell("C").numFmt = '0.00%'
                 row.getCell("A").alignment = { horizontal: "right" }
-                row = sheet.addRow(["% moyen proba de LOST", "", (proba_lost) / number_lost / 100])
+                row = sheet.addRow(["% moyen proba de LOST", "", (global_lost_weighted_recurring+global_lost_weighted_non_recurring) / (global_lost_recurring+global_lost_non_recurring)])
                 sheet.mergeCells(`A${row.number}:B${row.number}`)
                 row.getCell("C").numFmt = '0.00%'
                 row.getCell("A").alignment = { horizontal: "right" }
@@ -761,7 +793,7 @@ export default {
                 const s2 = this.screenshots.find(e => e.id === this.screenshot2)
 
                 const rows = [
-                    [ "Practice", "Job name", "Type", "Date 1", "Status 1", "Amount 1", "Probability 1", "Created at 1", "Sale date 1", "Date 2", "Status 2", "Amount 2", "Probability 2", "Created at 2", "Sale date 2" ]
+                    [ "Practice", "ID", "Job name", "Type", "Date 1", "Status 1", "Amount 1", "Probability 1", "Created at 1", "Sale date 1", "Date 2", "Status 2", "Amount 2", "Probability 2", "Created at 2", "Sale date 2" ]
                 ]
 
                 const result_all = await this.retrieveAllOpportunities()
@@ -775,7 +807,7 @@ export default {
                     for (let new_s of s2_values) {
                         IDs.push(new_s.id)
                         
-                        const row = [ team.name, new_s.job_name, new_s.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring" ]
+                        const row = [ team.name, new_s.id, new_s.job_name, new_s.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring" ]
 
                         const prev = s1_values.find(e => e.id == new_s.id)
 
@@ -797,11 +829,11 @@ export default {
                         if (data) {
                             const won = data.status === "won";
 
-                            const row = [ team.name, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, won ? "Won" : "Lost", removed.amount, removed.probability, removed.created_at, removed.sale ]
+                            const row = [ team.name, removed.id, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, won ? "Won" : "Lost", removed.amount, removed.probability, removed.created_at, removed.sale, s2.date, won ? "Won" : "Lost", parseFloat(data.amount), data.chances, data.created_at ]
 
                             rows.push(row)
                         } else {
-                            const row = [ team.name, removed.job_name, removed.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, "Removed", removed.amount, removed.probability, removed.created_at, removed.sale ]
+                            const row = [ team.name, removed.id, removed.job_name, removed.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, "Removed", removed.amount, removed.probability, removed.created_at, removed.sale, s2.date, won ? "Won" : "Lost", parseFloat(data.amount), data.chances, data.created_at ]
 
                             rows.push(row)
                         }
