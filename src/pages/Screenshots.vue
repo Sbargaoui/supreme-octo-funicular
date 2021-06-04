@@ -645,10 +645,11 @@ export default {
 
                     sheet.addRow([])
                     row = sheet.addRow(["", "Total", "Δ pipe pondéré", "Pipe pondéré"])
+                    const delta = total_delta_recurring + total_new_recurring_weighted - total_lost_weighted_recurring - total_win_weighted_recurring + total_delta_non_recurring + total_new_non_recurring_weighted - total_lost_weighted_non_recurring - total_win_weighted_non_recurring
                     row.getCell("B").font = { bold: true }
                     row.getCell("C").font = { bold: true }
                     row.getCell("D").font = { bold: true }
-                    row.getCell("C").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: total_delta >= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
+                    row.getCell("C").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: delta >= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
                     new Array("C", "D").map(k => {
                         row.getCell(k).border = {
                         top: {style:'medium'},
@@ -657,9 +658,9 @@ export default {
                         right: {style:'medium'}
                         }
                     })
-                    row = sheet.addRow(["", "", Math.round(total_delta_recurring + total_new_recurring_weighted - total_lost_weighted_recurring - total_win_weighted_recurring + total_delta_non_recurring + total_new_non_recurring_weighted - total_lost_weighted_non_recurring - total_win_weighted_non_recurring),
+                    row = sheet.addRow(["", "", Math.round(delta),
                     total_recurring_weighted + total_non_recurring_weighted])
-                    row.getCell("C").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: total_delta >= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
+                    row.getCell("C").fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: delta >= 0 ? "FFD9EAD3" : "FFF4CCCD" } }
                     new Array("C", "D").map(k => {
                         row.getCell(k).border = {
                         top: {style:'medium'},
