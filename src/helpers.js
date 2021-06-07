@@ -1,11 +1,11 @@
 export const TEAMS = [
-    { name: "[P] Data & Production", id: "564" },
-    { name: "[P] Data & Services", id: "566" },
-    { name: "[P] Data & Retail", id: "567" },
-    { name: "[P] Data & Society", id: "568" },
-    { name: "[P] Data & Mutuelle", id: "579" },
-    { name: "[P] Data & Performance", id: "944" },
-    { name: "[P] Axel Branger - Data & Production", id: "943" }
+    { name: "[P] Data & Production", id: "564", global: true },
+    { name: "[P] Data & Services", id: "566", global: true },
+    { name: "[P] Data & Retail", id: "567", global: true },
+    { name: "[P] Data & Society", id: "568", global: true },
+    { name: "[P] Data & Mutuelle", id: "579", global: true },
+    { name: "[P] Data & Performance", id: "944", global: false },
+    { name: "[P] Axel Branger - Data & Production", id: "943", global: true }
 ]
 export const TEAM_RECURRING = "789"
 export const TEAM_NON_RECURRING = "790"
