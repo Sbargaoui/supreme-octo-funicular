@@ -50,6 +50,8 @@ $(document).ready(function () {
                     all_opportunities.push(...result.data)
                     next_url = result.next_page_url
                 } while(next_url)
+
+                console.log(all_opportunities.find(e => e.job_name === "Acculturation COMEX - IPSEN"))
                 
                 const id = dropdownScreenshotList.val()
                 chrome.runtime.sendMessage(extensionID, {
@@ -236,15 +238,70 @@ $(document).ready(function () {
                                 ${data_client[0].name} - ${e.job_name}
                                 </div>
                                 <div class="portlet-content">
-                                    <span class="g_nowrap">${formatCurrency(e.amount)}</span>
+                                    <span class="g_nowrap">${formatCurrency(data[0].amount)}</span>
                                     <br>
-                                    <span class="pipe_litgr">Probabilité : </span><span>${e.probability}%</span>
+                                    <span class="pipe_litgr">Probabilité : </span><span>${data[0].chances}%</span>
                                     <br>
                                     ${!won && data.length > 0 && data[0].reazon ? `Raison : ${JSON.parse(data[0].reazon).select}${JSON.parse(data[0].reazon).comment ? ` / ${JSON.parse(data[0].reazon).comment}` : ''}` : ''}
                                 </div>
                             </div>`).appendTo(`.col${column}`)
                         }
                     }
+
+                    const wonlost_new_values = all_opportunities.filter(e => {
+                        return e.teams.indexOf(teamIdFromName(teamName)) !== -1 && moment(e.created_at, "YYYY-MM-DD hh:mm:ss").diff(moment(screenshot.date)) >= 0 && IDs.indexOf(e.id.toString()) === -1
+                    })
+                    console.log("Wonlost", wonlost_new_values)
+                    for (let e of wonlost_new_values) {
+                        const data_client = await $.ajax({
+                            url: "https://stafiz.net/api/crmorgas/" + e.client_company,
+                            headers: {
+                                "Authorization": "Bearer " + token
+                            }
+                        })
+                        const won = e.status === "won";
+
+                        if (won) {
+                            total_win += parseFloat(e.amount)
+                            total_win_weighted += parseFloat(e.amount) * e.probability/100
+
+                            if (e.teams.includes(TEAM_RECURRING)) {
+                                total_win_recurring += parseFloat(e.amount)
+                                total_win_weighted_recurring += parseFloat(e.amount) * e.chances/100
+                            }
+                            else if (e.teams.includes(TEAM_NON_RECURRING)) {
+                                total_win_non_recurring += parseFloat(e.amount)
+                                total_win_weighted_non_recurring += parseFloat(e.amount) * e.chances/100
+                            }
+                        } else {
+                            total_lost += parseFloat(e.amount)
+                            total_lost_weighted += parseFloat(e.amount) * e.chances/100
+
+                            if (e.teams.includes(TEAM_RECURRING)) {
+                                total_lost_recurring += parseFloat(e.amount)
+                                total_lost_weighted_recurring += parseFloat(e.amount) * e.chances/100
+                            }
+                            else if (e.teams.includes(TEAM_NON_RECURRING)) {
+                                total_lost_non_recurring += parseFloat(e.amount)
+                                total_lost_weighted_non_recurring += parseFloat(e.amount) * e.chances/100
+                            }
+                        }
+                        
+                        $(`<div class="portlet ui-widget ui-widget-content ui-helper-clearfix ui-corner-all extension-new" data-id="${e.id}" style="background-color: ${won ? CardsColor.WON : CardsColor.LOST}">
+                            <div class="extension portlet-header ui-sortable-handle ui-widget-header ui-corner-all">(${won ? 'Gagnée' : 'Perdue'})
+                            ${data_client[0].name} - ${e.job_name}
+                            </div>
+                            <div class="portlet-content">
+                                <span class="g_nowrap">${formatCurrency(e.amount)}</span>
+                                <br>
+                                <span class="pipe_litgr">Probabilité : </span><span>${e.chances}%</span>
+                                <br>
+                                ${!won && e.reazon ? `Raison : ${JSON.parse(e.reazon).select}${JSON.parse(e.reazon).comment ? ` / ${JSON.parse(e.reazon).comment}` : ''}` : ''}
+                            </div>
+                        </div>`).appendTo(`.col5`)
+                    }
+
+
                     $("#formtabtab1").after(`<div style='text-align:left;'>
                         <ul style='list-style: none;'>
                         <table>

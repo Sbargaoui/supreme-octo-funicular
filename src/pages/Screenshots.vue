@@ -79,15 +79,6 @@
                 </div>
                 <button v-if="screenshot1 && screenshot2" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-4"
                 v-confirm="{
-                    ok: exportCSV,
-                    message: 'Exporter en CSV ?',
-                    loader: true
-                }"
-                >
-                    Exporter CSV résumé
-                </button>
-                <button v-if="screenshot1 && screenshot2" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-4"
-                v-confirm="{
                     ok: exportXLS,
                     message: 'Exporter en XLS ?',
                     loader: true
@@ -538,23 +529,70 @@ export default {
                                 }
                             }
                         } else {
-                            total_new_weighted += new_s.amount * new_s.probability/100
-                            if (new_s.teams.includes(TEAM_RECURRING)) {
-                                total_new_recurring_weighted += new_s.amount * new_s.probability/100
-                                if(team.global && !opportunities_computed.includes(new_s.id)) {
-                                    global_new_recurring_weighted += new_s.amount * new_s.probability/100
+                            /*if (new_s.status === "won") {
+                                total_win += new_s.amount
+                                total_win_weighted += new_s.amount * new_s.probability/100
+                                
+                                if (new_s.teams.includes(TEAM_RECURRING)) {
+                                    total_win_recurring += new_s.amount
+                                    total_win_weighted_recurring += new_s.amount * new_s.probability/100
+
+                                    if(team.global && !opportunities_computed.includes(new_s.id)) {
+                                        global_win_recurring += new_s.amount
+                                        global_win_weighted_recurring += new_s.amount * new_s.probability/100
+                                    }
                                 }
-                            }
-                            else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
-                                total_new_non_recurring_weighted += new_s.amount * new_s.probability/100
-                                if(team.global && !opportunities_computed.includes(new_s.id)) {
-                                    console.log(team.name, new_s.id)
-                                    console.log("new", new_s.amount * new_s.probability/100)
-                                    global_new_non_recurring_weighted += new_s.amount * new_s.probability/100
-                                    console.log("new", new_s.amount * new_s.probability/100)
-                                    console.log("global", global_new_non_recurring_weighted)
+                                else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_win_non_recurring += new_s.amount
+                                    total_win_weighted_non_recurring += new_s.amount * new_s.probability/100
+
+                                    if(team.global && !opportunities_computed.includes(new_s.id)) {
+                                        global_win_non_recurring += new_s.amount
+                                        global_win_weighted_non_recurring += new_s.amount * new_s.probability/100
+                                    }
                                 }
-                            }
+                            } else if (new_s.status === "lost") {
+                                total_lost += new_s.amount
+                                total_lost_weighted += new_s.amount * new_s.probability/100
+                                
+                                if (new_s.teams.includes(TEAM_RECURRING)) {
+                                    total_lost_recurring += new_s.amount
+                                    total_lost_weighted_recurring += new_s.amount * new_s.probability/100
+
+                                    if(team.global && !opportunities_computed.includes(new_s.id)) {
+                                        global_lost_recurring += new_s.amount
+                                        global_lost_weighted_recurring += new_s.amount * new_s.probability/100
+                                    }
+                                }
+                                else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_lost_non_recurring += new_s.amount
+                                    total_lost_weighted_non_recurring += new_s.amount * new_s.probability/100
+
+                                    if(team.global && !opportunities_computed.includes(new_s.id)) {
+                                        global_lost_non_recurring += new_s.amount
+                                        global_lost_weighted_non_recurring += new_s.amount * new_s.probability/100
+                                    }
+                                }
+                            } else {*/
+                                console.log(new_s)
+                                total_new_weighted += new_s.amount * new_s.probability/100
+                                if (new_s.teams.includes(TEAM_RECURRING)) {
+                                    total_new_recurring_weighted += new_s.amount * new_s.probability/100
+                                    if(team.global && !opportunities_computed.includes(new_s.id)) {
+                                        global_new_recurring_weighted += new_s.amount * new_s.probability/100
+                                    }
+                                }
+                                else if (new_s.teams.includes(TEAM_NON_RECURRING)) {
+                                    total_new_non_recurring_weighted += new_s.amount * new_s.probability/100
+                                    if(team.global && !opportunities_computed.includes(new_s.id)) {
+                                        console.log(team.name, new_s.id)
+                                        console.log("new", new_s.amount * new_s.probability/100)
+                                        global_new_non_recurring_weighted += new_s.amount * new_s.probability/100
+                                        console.log("new", new_s.amount * new_s.probability/100)
+                                        console.log("global", global_new_non_recurring_weighted)
+                                    }
+                                }
+                            //}
                         }
 
                         opportunities_computed.push(new_s.id)
@@ -613,6 +651,61 @@ export default {
 
                             opportunities_computed.push(data.id)
                         }
+                    }
+
+                    const wonlost_new_values = result_all.filter(e => {
+                        return e.teams.indexOf(team.id) !== -1 && moment(e.created_at, "YYYY-MM-DD hh:mm:ss").diff(moment(s1.date)) >= 0 && IDs.indexOf(e.id) === -1
+                    })
+                    for (let removed of wonlost_new_values) {
+                        const data = removed
+                        const won = data.status === "won";
+                        if (won) {
+                            total_win += parseFloat(data.amount)
+                            total_win_weighted += parseFloat(data.amount) * removed.chances/100
+                            
+                            if (data.teams.includes(TEAM_RECURRING)) {
+                                total_win_recurring += parseFloat(data.amount)
+                                total_win_weighted_recurring += parseFloat(data.amount) * removed.chances/100
+
+                                if(team.global && !opportunities_computed.includes(data.id)) {
+                                    global_win_recurring += parseFloat(data.amount)
+                                    global_win_weighted_recurring += parseFloat(data.amount) * removed.chances/100
+                                }
+                            }
+                            else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                total_win_non_recurring += parseFloat(data.amount)
+                                total_win_weighted_non_recurring += parseFloat(data.amount) * removed.chances/100
+
+                                if(team.global && !opportunities_computed.includes(data.id)) {
+                                    global_win_non_recurring += parseFloat(data.amount)
+                                    global_win_weighted_non_recurring += parseFloat(data.amount) * removed.chances/100
+                                }
+                            }
+                        } else {
+                            total_lost += parseFloat(data.amount)
+                            total_lost_weighted += parseFloat(data.amount) * removed.chances/100
+
+                            if (data.teams.includes(TEAM_RECURRING)) {
+                                total_lost_recurring += parseFloat(data.amount)
+                                total_lost_weighted_recurring += parseFloat(data.amount) * removed.chances/100
+
+                                if(team.global && !opportunities_computed.includes(data.id)) {
+                                    global_lost_recurring += parseFloat(data.amount)
+                                    global_lost_weighted_recurring += parseFloat(data.amount) * removed.chances/100
+                                }
+                            }
+                            else if (data.teams.includes(TEAM_NON_RECURRING)) {
+                                total_lost_non_recurring += parseFloat(data.amount)
+                                total_lost_weighted_non_recurring += parseFloat(data.amount) * removed.chances/100
+
+                                if(team.global && !opportunities_computed.includes(data.id)) {
+                                    global_lost_non_recurring += parseFloat(data.amount)
+                                    global_lost_weighted_non_recurring += parseFloat(data.amount) * removed.chances/100
+                                }
+                            }
+                        }
+
+                        opportunities_computed.push(data.id)
                     }
 
                     /** RECURRING ROW */
@@ -841,6 +934,18 @@ export default {
 
                             rows.push(row)
                         }
+                    }
+
+                    const wonlost_new_values = result_all.filter(e => {
+                        return e.teams.indexOf(team.id) !== -1 && moment(e.created_at, "YYYY-MM-DD hh:mm:ss").diff(moment(s1.date)) >= 0 && IDs.indexOf(e.id) === -1
+                    })
+                    for (let removed of wonlost_new_values) {
+                        const data = removed
+                        const won = data.status === "won";
+
+                        const row = [ team.name, removed.id, data.job_name, data.teams.includes(TEAM_RECURRING) ? "Recurring" : "Non recurring", s1.date, "", "", "", "", "", s2.date, won ? "Won" : "Lost", parseFloat(data.amount), data.chances, data.created_at ]
+
+                        rows.push(row)
                     }
                 }
 
