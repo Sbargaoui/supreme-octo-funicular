@@ -6,3 +6,4 @@ package/
 .idea/workspace.xml
 .env
 web-ext-artifacts
+.DS_Store

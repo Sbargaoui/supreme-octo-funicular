@@ -58,7 +58,7 @@ $(document).ready(function () {
                     action: "db-get",
                     id: parseInt(id)
                 }, async screenshot => {
-                    const teamName = $("select[name=team]").next().find(".select2-selection__rendered").first().text()
+                    const teamName = $("select[data-select2-id=19]").next().find(".select2-selection__rendered").first().text()
                     if (teamName !== "Entreprise") {
                         screenshot.values = screenshot.values.filter(e => e.teams.indexOf(teamIdFromName(teamName)) !== -1)
                     } else {
@@ -187,6 +187,7 @@ $(document).ready(function () {
                             }
                         }
                     })
+                    console.log(IDs);
                     const removed_values = screenshot.values.filter(e => IDs.indexOf(e.id.toString()) === -1)
                     for (let e of removed_values) {
                         const data = await $.ajax({
@@ -247,7 +248,12 @@ $(document).ready(function () {
                             </div>`).appendTo(`.col${column}`)
                         }
                     }
-
+                    let e = all_opportunities[all_opportunities.length - 1]
+                    console.log(all_opportunities)
+                    console.log(e)
+                    console.log(e.teams.indexOf(teamIdFromName(teamName)))   
+                    console.log(moment(e.created_at, "YYYY-MM-DD hh:mm:ss").diff(moment(screenshot.date)))   
+                    console.log(IDs.indexOf(e.id.toString()))          
                     const wonlost_new_values = all_opportunities.filter(e => {
                         return e.teams.indexOf(teamIdFromName(teamName)) !== -1 && moment(e.created_at, "YYYY-MM-DD hh:mm:ss").diff(moment(screenshot.date)) >= 0 && IDs.indexOf(e.id.toString()) === -1
                     })
